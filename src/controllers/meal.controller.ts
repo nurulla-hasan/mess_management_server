@@ -83,16 +83,26 @@ export const getMealByDate = async (req: Request, res: Response): Promise<void> 
     if (!meal) {
       // Return empty with all active members for form
       const members = await Member.find({ status: 'active' }).populate('userId', 'fullName profilePicture');
+      
+      const targetDateStr = targetDate.toISOString().split('T')[0];
+
       sendSuccess(res, {
         date: req.params.date,
-        entries: members.map((m) => ({
-          memberId: m._id,
-          member: m,
-          breakfast: 0,
-          lunch: 0,
-          dinner: 0,
-          guest: 0,
-        })),
+        entries: members.map((m) => {
+          const isMealOff = m.mealOffDates.some(d => 
+            new Date(d).toISOString().split('T')[0] === targetDateStr
+          );
+          
+          return {
+            memberId: m._id,
+            member: m,
+            breakfast: 0,
+            lunch: 0,
+            dinner: 0,
+            guest: 0,
+            requestedOff: isMealOff
+          };
+        }),
         totalMeals: 0,
       });
       return;

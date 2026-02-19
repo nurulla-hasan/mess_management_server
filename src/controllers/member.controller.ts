@@ -223,22 +223,51 @@ export const toggleMealOff = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
+        if (member.status !== 'active') {
+            sendError(res, 'Member is not active', 403);
+            return;
+        }
+
         const targetDate = new Date(date);
         targetDate.setHours(0, 0, 0, 0);
 
-        const today = new Date();
+        const now = new Date();
+        const today = new Date(now);
         today.setHours(0, 0, 0, 0);
+
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        // Check date constraints
         if (targetDate < today) {
              sendError(res, 'Cannot change meal status for past dates', 400);
              return;
         }
 
+        if (targetDate.getTime() === today.getTime()) {
+             sendError(res, 'Cannot change meal status for today. Please contact manager.', 400);
+             return;
+        }
+
+        // If target is tomorrow, check 10 PM deadline
+        if (targetDate.getTime() === tomorrow.getTime()) {
+            const currentHour = now.getHours();
+            // Deadline: 10 PM (22:00)
+            if (currentHour >= 22) {
+                sendError(res, 'Meal off deadline (10:00 PM) has passed for tomorrow.', 400);
+                return;
+            }
+        }
+
+        // Toggle logic
         if (isOff) {
+            // Add date if not exists
             const exists = member.mealOffDates.some(d => new Date(d).getTime() === targetDate.getTime());
             if (!exists) {
                 member.mealOffDates.push(targetDate);
             }
         } else {
+            // Remove date
             member.mealOffDates = member.mealOffDates.filter(d => new Date(d).getTime() !== targetDate.getTime());
         }
 

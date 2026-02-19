@@ -490,7 +490,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"date\": \"2023-10-25\"\n}"
+              "raw": "{\n  \"date\": \"2023-10-25\",\n  \"isOff\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/members/me/meal-off",
