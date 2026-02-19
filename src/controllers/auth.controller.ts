@@ -82,8 +82,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 // @route   POST /api/auth/verify-email
 export const verifyEmail = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { code } = req.body;
-    const userId = req.user?._id;
+    const { email, code } = req.body;
 
     if (!code) {
       sendError(res, 'Verification code is required', 400);
@@ -91,7 +90,7 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
     }
 
     const user = await User.findOne({
-      _id: userId,
+      email,
       verificationCode: code,
       verificationCodeExpire: { $gt: Date.now() },
     });
@@ -104,12 +103,91 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
     user.isVerified = true;
     user.verificationCode = undefined;
     user.verificationCodeExpire = undefined;
+
     await user.save();
 
-    sendSuccess(res, {
-      email: user.email,
-      isVerified: user.isVerified
-    }, 'Email verified successfully');
+    sendSuccess(res, null, 'Email verified successfully', 200);
+  } catch (error) {
+    sendError(res, (error as Error).message);
+  }
+};
+
+// @desc    Forgot Password
+// @route   POST /api/auth/forgot-password
+export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      sendError(res, 'User not found with this email', 404);
+      return;
+    }
+
+    // Generate 6-digit code
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Set code and expire
+    user.resetPasswordToken = resetCode;
+    user.resetPasswordExpire = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await user.save({ validateBeforeSave: false });
+
+    const message = `
+      <h1>Password Reset Code</h1>
+      <p>You have requested a password reset. Your verification code is:</p>
+      <h2 style="color: #4F46E5; font-size: 24px; letter-spacing: 2px;">${resetCode}</h2>
+      <p>This code will expire in 10 minutes.</p>
+    `;
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'Password Reset Verification Code',
+        message: `Your password reset code is: ${resetCode}`,
+        html: message,
+      });
+
+      sendSuccess(res, null, 'Reset code sent to email', 200);
+    } catch (error) {
+      console.error(error);
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+
+      await user.save({ validateBeforeSave: false });
+
+      sendError(res, 'Email could not be sent', 500);
+    }
+  } catch (error) {
+    sendError(res, (error as Error).message);
+  }
+};
+
+// @desc    Reset Password
+// @route   POST /api/auth/reset-password
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, code, password } = req.body;
+
+    const user = await User.findOne({
+      email,
+      resetPasswordToken: code,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      sendError(res, 'Invalid code or email, or code expired', 400);
+      return;
+    }
+
+    // Set new password
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+
+    await user.save();
+
+    sendSuccess(res, null, 'Password updated successfully', 200);
   } catch (error) {
     sendError(res, (error as Error).message);
   }
@@ -119,9 +197,14 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
 // @route   POST /api/auth/resend-code
 export const resendVerificationCode = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?._id;
+    const { email } = req.body;
 
-    const user = await User.findById(userId);
+    if (!email) {
+      sendError(res, 'Email is required', 400);
+      return;
+    }
+
+    const user = await User.findOne({ email });
     if (!user) {
       sendError(res, 'User not found', 404);
       return;

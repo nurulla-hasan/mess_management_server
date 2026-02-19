@@ -9,6 +9,7 @@ export const registerSchema = z.object({
 });
 
 export const verifyEmailSchema = z.object({
+  email: z.string().email('Invalid email address'),
   code: z.string().length(6, 'Verification code must be 6 digits'),
 });
 
@@ -30,4 +31,18 @@ export const updateProfileSchema = z.object({
   fullName: z.string().min(2).max(100).optional(),
   email: z.string().email().optional(),
   phone: z.string().min(10).optional(),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+});
+
+export const resetPasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  code: z.string().length(6, 'Reset code must be 6 digits'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  confirmPassword: z.string().min(6, 'Confirm password must be at least 6 characters'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
 });
