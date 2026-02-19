@@ -14,11 +14,23 @@
       "value": ""
     },
     {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
       "key": "adminToken",
       "value": ""
     },
     {
+      "key": "adminRefreshToken",
+      "value": ""
+    },
+    {
       "key": "memberToken",
+      "value": ""
+    },
+    {
+      "key": "memberRefreshToken",
       "value": ""
     },
     {
@@ -60,12 +72,16 @@
               "script": {
                 "exec": [
                   "var jsonData = pm.response.json();",
-                  "if (jsonData.success && jsonData.data.token) {",
-                  "    pm.collectionVariables.set('adminToken', jsonData.data.token);",
-                  "    pm.collectionVariables.set('token', jsonData.data.token);",
+                  "if (jsonData.success && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set('adminToken', jsonData.data.accessToken);",
+                  "    pm.collectionVariables.set('token', jsonData.data.accessToken);",
+                  "    pm.collectionVariables.set('adminRefreshToken', jsonData.data.refreshToken);",
                   "}",
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Has token', () => pm.expect(jsonData.data.token).to.exist);"
+                  "pm.test('Has tokens', () => {",
+                  "    pm.expect(jsonData.data.accessToken).to.exist;",
+                  "    pm.expect(jsonData.data.refreshToken).to.exist;",
+                  "});"
                 ],
                 "type": "text/javascript"
               }
@@ -98,8 +114,9 @@
               "script": {
                 "exec": [
                   "var jsonData = pm.response.json();",
-                  "if (jsonData.success && jsonData.data.token) {",
-                  "    pm.collectionVariables.set('memberToken', jsonData.data.token);",
+                  "if (jsonData.success && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set('memberToken', jsonData.data.accessToken);",
+                  "    pm.collectionVariables.set('memberRefreshToken', jsonData.data.refreshToken);",
                   "}",
                   "pm.test('Status 201', () => pm.response.to.have.status(201));"
                 ],
@@ -127,7 +144,7 @@
           }
         },
         {
-          "name": "Register Member 2 (Jane Smith)",
+          "name": "Verify Email",
           "request": {
             "method": "POST",
             "header": [
@@ -138,33 +155,12 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"fullName\": \"Jane Smith\",\n  \"email\": \"jane@example.com\",\n  \"phone\": \"+8801712345680\",\n  \"password\": \"member123\",\n  \"role\": \"member\"\n}"
+              "raw": "{\n  \"token\": \"YOUR_VERIFICATION_TOKEN_HERE\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/auth/register",
+              "raw": "{{baseUrl}}/auth/verify-email",
               "host": ["{{baseUrl}}"],
-              "path": ["auth", "register"]
-            }
-          }
-        },
-        {
-          "name": "Register Member 3 (Mike Ross)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fullName\": \"Mike Ross\",\n  \"email\": \"mike@example.com\",\n  \"phone\": \"+8801712345681\",\n  \"password\": \"member123\",\n  \"role\": \"member\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "register"]
+              "path": ["auth", "verify-email"]
             }
           }
         },
@@ -176,13 +172,17 @@
               "script": {
                 "exec": [
                   "var jsonData = pm.response.json();",
-                  "if (jsonData.success && jsonData.data.token) {",
-                  "    pm.collectionVariables.set('adminToken', jsonData.data.token);",
-                  "    pm.collectionVariables.set('token', jsonData.data.token);",
+                  "if (jsonData.success && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set('adminToken', jsonData.data.accessToken);",
+                  "    pm.collectionVariables.set('token', jsonData.data.accessToken);",
+                  "    pm.collectionVariables.set('adminRefreshToken', jsonData.data.refreshToken);",
+                  "    pm.collectionVariables.set('refreshToken', jsonData.data.refreshToken);",
                   "}",
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Has token', () => pm.expect(jsonData.data.token).to.exist);",
-                  "pm.test('Role is admin', () => pm.expect(jsonData.data.user.role).to.eql('admin'));"
+                  "pm.test('Has tokens', () => {",
+                  "    pm.expect(jsonData.data.accessToken).to.exist;",
+                  "    pm.expect(jsonData.data.refreshToken).to.exist;",
+                  "});"
                 ],
                 "type": "text/javascript"
               }
@@ -215,11 +215,11 @@
               "script": {
                 "exec": [
                   "var jsonData = pm.response.json();",
-                  "if (jsonData.success && jsonData.data.token) {",
-                  "    pm.collectionVariables.set('memberToken', jsonData.data.token);",
+                  "if (jsonData.success && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set('memberToken', jsonData.data.accessToken);",
+                  "    pm.collectionVariables.set('memberRefreshToken', jsonData.data.refreshToken);",
                   "}",
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Role is member', () => pm.expect(jsonData.data.user.role).to.eql('member'));"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
                 ],
                 "type": "text/javascript"
               }
@@ -241,6 +241,42 @@
               "raw": "{{baseUrl}}/auth/login",
               "host": ["{{baseUrl}}"],
               "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data.accessToken) {",
+                  "    pm.collectionVariables.set('token', jsonData.data.accessToken);",
+                  "}",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh-token"]
             }
           }
         },

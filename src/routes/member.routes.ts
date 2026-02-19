@@ -1,35 +1,38 @@
-import { Router } from 'express';
+import express from 'express';
 import {
-  getMembers,
-  getMember,
-  addMember,
+  getAllMembers,
+  getMemberById,
+  createMember,
   updateMember,
   deleteMember,
   getMemberStats,
   getMyDashboard,
-  toggleMealOff,
+  toggleMealOff
 } from '../controllers/member.controller';
 import { requireAuth, requireAdmin } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate.middleware';
-import { addMemberSchema, updateMemberSchema, mealOffSchema } from '../validators/member.validator';
+import { createMemberSchema, updateMemberSchema, toggleMealOffSchema } from '../validators/member.validator';
 
-const router = Router();
+const router = express.Router();
 
-// All routes require auth
+// Protect all routes
 router.use(requireAuth);
 
-// Member personal routes
+// Dashboard & Stats
+router.get('/stats', requireAdmin, getMemberStats);
 router.get('/me/dashboard', getMyDashboard);
-router.put('/me/meal-off', validate(mealOffSchema), toggleMealOff);
 
-// Stats route (before :id to avoid conflict)
-router.get('/stats', getMemberStats);
+// Member actions
+router.put('/me/meal-off', validate(toggleMealOffSchema), toggleMealOff);
 
-// Admin CRUD routes
-router.get('/', getMembers);
-router.get('/:id', getMember);
-router.post('/', requireAdmin, validate(addMemberSchema), addMember);
-router.put('/:id', requireAdmin, validate(updateMemberSchema), updateMember);
-router.delete('/:id', requireAdmin, deleteMember);
+// CRUD
+router.route('/')
+    .get(getAllMembers)
+    .post(requireAdmin, validate(createMemberSchema), createMember);
+
+router.route('/:id')
+    .get(getMemberById)
+    .put(requireAdmin, validate(updateMemberSchema), updateMember)
+    .delete(requireAdmin, deleteMember);
 
 export default router;

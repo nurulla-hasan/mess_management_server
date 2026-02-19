@@ -1,20 +1,18 @@
-import mongoose, { Schema, Document, Types } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IMember extends Document {
-  userId: Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
   totalMeals: number;
   totalDeposits: number;
   currentBalance: number;
   status: 'active' | 'inactive';
-  mealOffDates: Date[]; // Dates when member has opted out of meals
-  createdAt: Date;
-  updatedAt: Date;
+  mealOffDates: Date[];
 }
 
-const memberSchema = new Schema<IMember>(
+const MemberSchema: Schema = new Schema(
   {
     userId: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
       unique: true,
@@ -46,5 +44,4 @@ const memberSchema = new Schema<IMember>(
   }
 );
 
-const Member = mongoose.model<IMember>('Member', memberSchema);
-export default Member;
+export default mongoose.model<IMember>('Member', MemberSchema);

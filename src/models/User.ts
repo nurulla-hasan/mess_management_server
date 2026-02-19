@@ -9,6 +9,9 @@ export interface IUser extends Document {
   role: 'admin' | 'member';
   profilePicture?: string;
   isActive: boolean;
+  isVerified: boolean;
+  verificationToken?: string;
+  verificationTokenExpire?: Date;
   joinDate: Date;
   comparePassword(enteredPassword: string): Promise<boolean>;
 }
@@ -54,6 +57,12 @@ const UserSchema: Schema = new Schema(
       type: Boolean,
       default: true,
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: String,
+    verificationTokenExpire: Date,
     joinDate: {
       type: Date,
       default: Date.now,
