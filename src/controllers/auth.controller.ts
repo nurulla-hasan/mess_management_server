@@ -19,9 +19,9 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Generate verification token
-    const verificationToken = crypto.randomBytes(20).toString('hex');
-    const verificationTokenExpire = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    // Generate 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationCodeExpire = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     // Create user
     const user = await User.create({
@@ -30,8 +30,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       phone,
       password,
       role: 'member', // Force role to be member for public registration
-      verificationToken,
-      verificationTokenExpire,
+      verificationCode,
+      verificationCodeExpire,
       isVerified: false
     });
 
@@ -45,18 +45,18 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const refreshToken = generateRefreshToken(user._id.toString(), user.role);
 
     // Send verification email
-    const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
     const message = `
       <h1>Email Verification</h1>
-      <p>Please click the link below to verify your email address:</p>
-      <a href="${verifyUrl}" clicktracking=off>${verifyUrl}</a>
+      <p>Your verification code is:</p>
+      <h2 style="color: #4F46E5; font-size: 24px; letter-spacing: 2px;">${verificationCode}</h2>
+      <p>This code will expire in 24 hours.</p>
     `;
 
     try {
       await sendEmail({
         email: user.email,
-        subject: 'Mess Management - Email Verification',
-        message: `Please click the link below to verify your email address: ${verifyUrl}`,
+        subject: 'Mess Management - Email Verification Code',
+        message: `Your verification code is: ${verificationCode}`,
         html: message,
       });
     } catch (error) {
@@ -70,7 +70,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         accessToken,
         refreshToken,
       },
-      'Registration successful. Please check your email to verify your account.',
+      'Registration successful. Please check your email for the verification code.',
       201
     );
   } catch (error) {
@@ -82,34 +82,90 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 // @route   POST /api/auth/verify-email
 export const verifyEmail = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { token } = req.body;
+    const { code } = req.body;
+    const userId = req.user?._id;
 
-    if (!token) {
-      sendError(res, 'Invalid verification token', 400);
+    if (!code) {
+      sendError(res, 'Verification code is required', 400);
       return;
     }
 
     const user = await User.findOne({
-      verificationToken: token,
-      verificationTokenExpire: { $gt: Date.now() },
+      _id: userId,
+      verificationCode: code,
+      verificationCodeExpire: { $gt: Date.now() },
     });
 
     if (!user) {
-      sendError(res, 'Invalid or expired verification token', 400);
+      sendError(res, 'Invalid or expired verification code', 400);
       return;
     }
 
     user.isVerified = true;
-    user.verificationToken = undefined;
-    user.verificationTokenExpire = undefined;
+    user.verificationCode = undefined;
+    user.verificationCodeExpire = undefined;
     await user.save();
 
-    sendSuccess(res, null, 'Email verified successfully');
+    sendSuccess(res, {
+      email: user.email,
+      isVerified: user.isVerified
+    }, 'Email verified successfully');
   } catch (error) {
     sendError(res, (error as Error).message);
   }
 };
 
+// @desc    Resend verification code
+// @route   POST /api/auth/resend-code
+export const resendVerificationCode = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?._id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      sendError(res, 'User not found', 404);
+      return;
+    }
+
+    if (user.isVerified) {
+      sendError(res, 'Email is already verified', 400);
+      return;
+    }
+
+    // Generate 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationCodeExpire = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    user.verificationCode = verificationCode;
+    user.verificationCodeExpire = verificationCodeExpire;
+    await user.save();
+
+    // Send verification email
+    const message = `
+      <h1>Email Verification</h1>
+      <p>Your new verification code is:</p>
+      <h2 style="color: #4F46E5; font-size: 24px; letter-spacing: 2px;">${verificationCode}</h2>
+      <p>This code will expire in 24 hours.</p>
+    `;
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'Mess Management - Resend Email Verification Code',
+        message: `Your new verification code is: ${verificationCode}`,
+        html: message,
+      });
+    } catch (error) {
+      console.error('Email send error:', error);
+      sendError(res, 'Email could not be sent', 500);
+      return;
+    }
+
+    sendSuccess(res, null, 'Verification code resent successfully');
+  } catch (error) {
+    sendError(res, (error as Error).message);
+  }
+};
 
 // @desc    Login user
 // @route   POST /api/auth/login

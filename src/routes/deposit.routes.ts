@@ -1,23 +1,24 @@
-import { Router } from 'express';
+import express from 'express';
 import {
   createDeposit,
-  getDeposits,
+  getAllDeposits,
   getMyDeposits,
-  verifyDeposit,
-  requestVerification,
+  updateDepositStatus,
+  deleteDeposit,
 } from '../controllers/deposit.controller';
 import { requireAuth, requireAdmin } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate.middleware';
-import { createDepositSchema } from '../validators/expense.validator';
+import { createDepositSchema, updateDepositStatusSchema } from '../validators/deposit.validator';
 
-const router = Router();
+const router = express.Router();
 
-router.use(requireAuth);
+// Member routes
+router.post('/', requireAuth, validate(createDepositSchema), createDeposit);
+router.get('/my-deposits', requireAuth, getMyDeposits);
 
-router.get('/me', getMyDeposits);
-router.post('/', validate(createDepositSchema), createDeposit);
-router.get('/', getDeposits);
-router.put('/:id/verify', requireAdmin, verifyDeposit);
-router.put('/:id/request-verification', requestVerification);
+// Admin routes
+router.get('/', requireAuth, requireAdmin, getAllDeposits);
+router.put('/:id/status', requireAuth, requireAdmin, validate(updateDepositStatusSchema), updateDepositStatus);
+router.delete('/:id', requireAuth, requireAdmin, deleteDeposit);
 
 export default router;

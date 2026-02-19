@@ -1,141 +1,173 @@
 import { Request, Response } from 'express';
 import Deposit from '../models/Deposit';
 import Member from '../models/Member';
-import { sendSuccess, sendError, sendPaginated, getPagination } from '../utils/helpers';
+import { sendSuccess, sendError } from '../utils/helpers';
 
-// @desc    Create a new deposit
+// @desc    Create new deposit request
 // @route   POST /api/deposits
 export const createDeposit = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { memberId, amount, paymentMethod, date, note } = req.body;
+    const { amount, paymentMethod, date, note } = req.body;
+    const userId = req.user?._id;
 
-    // Verify member exists
-    const member = await Member.findById(memberId);
+    const member = await Member.findOne({ userId });
     if (!member) {
-      sendError(res, 'Member not found', 404);
+      sendError(res, 'Member profile not found', 404);
       return;
     }
 
     const deposit = await Deposit.create({
-      memberId,
+      memberId: member._id,
       amount,
       paymentMethod,
-      date: date ? new Date(date) : new Date(),
+      date: date || new Date(),
       note,
-      status: req.user?.role === 'admin' ? 'verified' : 'pending',
-      verifiedBy: req.user?.role === 'admin' ? req.user._id : undefined,
+      status: 'pending',
     });
 
-    // If admin created and auto-verified, update member balance
-    if (req.user?.role === 'admin') {
-      member.totalDeposits += amount;
-      member.currentBalance += amount;
-      await member.save();
-    }
-
-    sendSuccess(res, deposit, 'Deposit recorded successfully', 201);
+    sendSuccess(res, { deposit }, 'Deposit request created successfully', 201);
   } catch (error) {
     sendError(res, (error as Error).message);
   }
 };
 
-// @desc    Get deposits (all or filtered)
+// @desc    Get all deposits (Admin)
 // @route   GET /api/deposits
-export const getDeposits = async (req: Request, res: Response): Promise<void> => {
+export const getAllDeposits = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+    const status = req.query.status as string;
     const memberId = req.query.memberId as string;
-    const month = parseInt(req.query.month as string);
-    const year = parseInt(req.query.year as string);
 
-    const filter: any = {};
-    if (memberId) filter.memberId = memberId;
+    let query: any = {};
+    if (status) query.status = status;
+    if (memberId) query.memberId = memberId;
 
-    if (month && year) {
-      const startDate = new Date(year, month - 1, 1);
-      const endDate = new Date(year, month, 0, 23, 59, 59);
-      filter.date = { $gte: startDate, $lte: endDate };
-    }
-
-    const total = await Deposit.countDocuments(filter);
-    const deposits = await Deposit.find(filter)
+    const deposits = await Deposit.find(query)
       .populate({
         path: 'memberId',
-        populate: { path: 'userId', select: 'fullName email phone profilePicture' },
+        populate: { path: 'userId', select: 'fullName email phone' }
       })
-      .populate('verifiedBy', 'fullName')
-      .sort({ date: -1 })
+      .populate('verifiedBy', 'fullName email')
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .sort({ createdAt: -1 });
 
-    sendPaginated(res, deposits, total, page, limit, 'Deposits fetched');
+    const total = await Deposit.countDocuments(query);
+
+    sendSuccess(res, {
+      deposits,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     sendError(res, (error as Error).message);
   }
 };
 
-// @desc    Get my deposits (member panel)
-// @route   GET /api/deposits/me
+// @desc    Get my deposits (Member)
+// @route   GET /api/deposits/my-deposits
 export const getMyDeposits = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
-
-    const member = await Member.findOne({ userId: req.user?._id });
+    const userId = req.user?._id;
+    const member = await Member.findOne({ userId });
+    
     if (!member) {
-      sendError(res, 'Member not found', 404);
+      sendError(res, 'Member profile not found', 404);
       return;
     }
 
-    const filter = { memberId: member._id };
-    const total = await Deposit.countDocuments(filter);
-    const deposits = await Deposit.find(filter)
-      .populate('verifiedBy', 'fullName')
-      .sort({ date: -1 })
-      .skip(skip)
-      .limit(limit);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
 
-    sendPaginated(res, deposits, total, page, limit, 'My deposits fetched');
+    const deposits = await Deposit.find({ memberId: member._id })
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    const total = await Deposit.countDocuments({ memberId: member._id });
+
+    sendSuccess(res, {
+      deposits,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     sendError(res, (error as Error).message);
   }
 };
 
-// @desc    Verify a deposit (Admin)
-// @route   PUT /api/deposits/:id/verify
-export const verifyDeposit = async (req: Request, res: Response): Promise<void> => {
+// @desc    Update deposit status (Admin)
+// @route   PUT /api/deposits/:id/status
+export const updateDepositStatus = async (req: Request, res: Response): Promise<void> => {
   try {
-    const deposit = await Deposit.findById(req.params.id);
+    const { status } = req.body;
+    const depositId = req.params.id;
+    const adminId = req.user?._id;
+
+    const deposit = await Deposit.findById(depositId);
     if (!deposit) {
       sendError(res, 'Deposit not found', 404);
       return;
     }
 
-    if (deposit.status === 'verified') {
-      sendError(res, 'Deposit already verified', 400);
+    const oldStatus = deposit.status;
+    
+    // If status is same, do nothing
+    if (oldStatus === status) {
+      sendSuccess(res, { deposit }, 'Status unchanged');
       return;
     }
 
-    deposit.status = 'verified';
-    deposit.verifiedBy = req.user?._id;
+    // Update deposit
+    deposit.status = status;
+    if (status === 'approved' || status === 'rejected') {
+      deposit.verifiedBy = adminId;
+    }
     await deposit.save();
 
-    // Update member balance
+    // Update Member Balance Logic
     const member = await Member.findById(deposit.memberId);
     if (member) {
-      member.totalDeposits += deposit.amount;
-      member.currentBalance += deposit.amount;
-      await member.save();
+      let balanceChange = 0;
+
+      // Logic: 
+      // If moving TO approved: +amount
+      // If moving FROM approved: -amount
+      
+      if (status === 'approved' && oldStatus !== 'approved') {
+        balanceChange = deposit.amount;
+      } else if (oldStatus === 'approved' && status !== 'approved') {
+        balanceChange = -deposit.amount;
+      }
+
+      if (balanceChange !== 0) {
+        member.totalDeposits += balanceChange;
+        member.currentBalance += balanceChange;
+        await member.save();
+      }
     }
 
-    sendSuccess(res, deposit, 'Deposit verified successfully');
+    sendSuccess(res, { deposit }, 'Deposit status updated successfully');
   } catch (error) {
     sendError(res, (error as Error).message);
   }
 };
 
-// @desc    Request verification for a deposit (Member)
-// @route   PUT /api/deposits/:id/request-verification
-export const requestVerification = async (req: Request, res: Response): Promise<void> => {
+// @desc    Delete deposit (Admin)
+// @route   DELETE /api/deposits/:id
+export const deleteDeposit = async (req: Request, res: Response): Promise<void> => {
   try {
     const deposit = await Deposit.findById(req.params.id);
     if (!deposit) {
@@ -143,22 +175,18 @@ export const requestVerification = async (req: Request, res: Response): Promise<
       return;
     }
 
-    // Verify ownership
-    const member = await Member.findOne({ userId: req.user?._id });
-    if (!member || deposit.memberId.toString() !== member._id.toString()) {
-      sendError(res, 'Not authorized for this deposit', 403);
-      return;
+    // If deleting an approved deposit, revert balance
+    if (deposit.status === 'approved') {
+      const member = await Member.findById(deposit.memberId);
+      if (member) {
+        member.totalDeposits -= deposit.amount;
+        member.currentBalance -= deposit.amount;
+        await member.save();
+      }
     }
 
-    if (deposit.status === 'verified') {
-      sendError(res, 'Deposit is already verified', 400);
-      return;
-    }
-
-    deposit.status = 'pending';
-    await deposit.save();
-
-    sendSuccess(res, deposit, 'Verification requested');
+    await deposit.deleteOne();
+    sendSuccess(res, null, 'Deposit deleted successfully');
   } catch (error) {
     sendError(res, (error as Error).message);
   }

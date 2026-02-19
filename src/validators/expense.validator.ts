@@ -5,9 +5,9 @@ export const createExpenseSchema = z.object({
   buyerId: z.string().min(1, 'Buyer is required'),
   category: z.enum(['meat_fish', 'vegetables', 'groceries', 'utility', 'rent', 'gas', 'other']),
   items: z.string().min(1, 'Items description is required'),
-  amount: z.number().positive('Amount must be positive'),
+  amount: z.coerce.number().positive('Amount must be positive'),
   paymentSource: z.enum(['mess_fund', 'personal']).default('mess_fund'),
-  adjustment: z.number().default(0),
+  adjustment: z.coerce.number().default(0),
 });
 
 export const updateExpenseSchema = z.object({
@@ -15,9 +15,9 @@ export const updateExpenseSchema = z.object({
   buyerId: z.string().optional(),
   category: z.enum(['meat_fish', 'vegetables', 'groceries', 'utility', 'rent', 'gas', 'other']).optional(),
   items: z.string().min(1).optional(),
-  amount: z.number().positive().optional(),
+  amount: z.coerce.number().positive().optional(),
   paymentSource: z.enum(['mess_fund', 'personal']).optional(),
-  adjustment: z.number().optional(),
+  adjustment: z.coerce.number().optional(),
 });
 
 export const createDepositSchema = z.object({

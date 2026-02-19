@@ -1,58 +1,50 @@
-import mongoose, { Schema, Document, Types } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IDeposit extends Document {
-  memberId: Types.ObjectId;
+  memberId: mongoose.Types.ObjectId;
   amount: number;
   paymentMethod: 'bkash' | 'cash' | 'bank_transfer' | 'nagad' | 'rocket';
-  status: 'verified' | 'pending' | 'rejected';
-  verifiedBy?: Types.ObjectId;
+  status: 'pending' | 'approved' | 'rejected';
+  verifiedBy?: mongoose.Types.ObjectId;
   date: Date;
   note?: string;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
-const depositSchema = new Schema<IDeposit>(
+const DepositSchema: Schema = new Schema(
   {
     memberId: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: 'Member',
-      required: [true, 'Member ID is required'],
+      required: true,
     },
     amount: {
       type: Number,
-      required: [true, 'Amount is required'],
-      min: [0, 'Amount cannot be negative'],
+      required: true,
+      min: 1,
     },
     paymentMethod: {
       type: String,
       enum: ['bkash', 'cash', 'bank_transfer', 'nagad', 'rocket'],
-      required: [true, 'Payment method is required'],
+      required: true,
     },
     status: {
       type: String,
-      enum: ['verified', 'pending', 'rejected'],
+      enum: ['pending', 'approved', 'rejected'],
       default: 'pending',
     },
     verifiedBy: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
     date: {
       type: Date,
-      required: [true, 'Date is required'],
       default: Date.now,
     },
     note: {
       type: String,
-      trim: true,
-      maxlength: [500, 'Note cannot exceed 500 characters'],
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-const Deposit = mongoose.model<IDeposit>('Deposit', depositSchema);
-export default Deposit;
+export default mongoose.model<IDeposit>('Deposit', DepositSchema);
