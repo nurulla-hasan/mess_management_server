@@ -27,13 +27,13 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/members', memberRoutes);
-app.use('/api/deposits', depositRoutes);
-app.use('/api/meals', mealRoutes);
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/settings', settingsRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/members', memberRoutes);
+app.use('/api/v1/deposits', depositRoutes);
+app.use('/api/v1/meals', mealRoutes);
+app.use('/api/v1/expenses', expenseRoutes);
+app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/settings', settingsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
