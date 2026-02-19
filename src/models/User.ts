@@ -1,7 +1,7 @@
-import mongoose, { Schema, Model, HydratedDocument } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-export interface IUser {
+export interface IUser extends Document {
   fullName: string;
   email: string;
   phone: string;
@@ -10,42 +10,35 @@ export interface IUser {
   profilePicture?: string;
   isActive: boolean;
   joinDate: Date;
-  createdAt: Date;
-  updatedAt: Date;
+  comparePassword(enteredPassword: string): Promise<boolean>;
 }
 
-export interface IUserMethods {
-  comparePassword(candidatePassword: string): Promise<boolean>;
-}
+// Alias for consistency with other files
+export type UserDocument = IUser;
 
-export type UserDocument = HydratedDocument<IUser, IUserMethods>;
-type UserModel = Model<IUser, {}, IUserMethods>;
-
-const userSchema = new Schema<IUser, UserModel, IUserMethods>(
+const UserSchema: Schema = new Schema(
   {
     fullName: {
       type: String,
-      required: [true, 'Full name is required'],
-      trim: true,
-      maxlength: [100, 'Name cannot exceed 100 characters'],
+      required: [true, 'Please add a name'],
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
+      required: [true, 'Please add an email'],
       unique: true,
-      lowercase: true,
-      trim: true,
-      match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email'],
+      match: [
+        /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+        'Please add a valid email',
+      ],
     },
     phone: {
       type: String,
-      required: [true, 'Phone number is required'],
-      trim: true,
+      required: [true, 'Please add a phone number'],
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters'],
+      required: [true, 'Please add a password'],
+      minlength: 6,
       select: false,
     },
     role: {
@@ -71,17 +64,19 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
   }
 );
 
-// Hash password before saving
-userSchema.pre('save', async function () {
-  if (!this.isModified('password')) return;
-  const salt = await bcrypt.genSalt(12);
-  this.password = await bcrypt.hash(this.password, salt);
+// Encrypt password using bcrypt
+UserSchema.pre('save', async function () {
+  if (!this.isModified('password')) {
+    return;
+  }
+  const salt = await bcrypt.genSalt(10);
+  // Ensure this.password is a string
+  this.password = await bcrypt.hash(this.password as string, salt);
 });
 
-// Compare password method
-userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
-  return bcrypt.compare(candidatePassword, this.password);
+// Match user entered password to hashed password in database
+UserSchema.methods.comparePassword = async function (enteredPassword: string) {
+  return await bcrypt.compare(enteredPassword, this.password);
 };
 
-const User = mongoose.model<IUser, UserModel>('User', userSchema);
-export default User;
+export default mongoose.model<IUser>('User', UserSchema);
