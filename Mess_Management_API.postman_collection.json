@@ -1,0 +1,1182 @@
+{
+  "info": {
+    "name": "Mess Management API",
+    "description": "Complete API collection for Mess Management System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "memberToken",
+      "value": ""
+    },
+    {
+      "key": "memberId",
+      "value": ""
+    },
+    {
+      "key": "depositId",
+      "value": ""
+    },
+    {
+      "key": "mealId",
+      "value": ""
+    },
+    {
+      "key": "expenseId",
+      "value": ""
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Register Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data.token) {",
+                  "    pm.collectionVariables.set('adminToken', jsonData.data.token);",
+                  "    pm.collectionVariables.set('token', jsonData.data.token);",
+                  "}",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Has token', () => pm.expect(jsonData.data.token).to.exist);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Admin User\",\n  \"email\": \"admin@messmanager.com\",\n  \"phone\": \"+8801712345678\",\n  \"password\": \"admin123\",\n  \"role\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Register Member 1 (John Doe)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data.token) {",
+                  "    pm.collectionVariables.set('memberToken', jsonData.data.token);",
+                  "}",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"+8801712345679\",\n  \"password\": \"member123\",\n  \"role\": \"member\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Register Member 2 (Jane Smith)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Jane Smith\",\n  \"email\": \"jane@example.com\",\n  \"phone\": \"+8801712345680\",\n  \"password\": \"member123\",\n  \"role\": \"member\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Register Member 3 (Mike Ross)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Mike Ross\",\n  \"email\": \"mike@example.com\",\n  \"phone\": \"+8801712345681\",\n  \"password\": \"member123\",\n  \"role\": \"member\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data.token) {",
+                  "    pm.collectionVariables.set('adminToken', jsonData.data.token);",
+                  "    pm.collectionVariables.set('token', jsonData.data.token);",
+                  "}",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has token', () => pm.expect(jsonData.data.token).to.exist);",
+                  "pm.test('Role is admin', () => pm.expect(jsonData.data.user.role).to.eql('admin'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@messmanager.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login Member",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data.token) {",
+                  "    pm.collectionVariables.set('memberToken', jsonData.data.token);",
+                  "}",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Role is member', () => pm.expect(jsonData.data.user.role).to.eql('member'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"member123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"admin123\",\n  \"newPassword\": \"admin1234\",\n  \"confirmPassword\": \"admin1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/change-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "change-password"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Admin User Updated\",\n  \"phone\": \"+8801999999999\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "profile"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 Members",
+      "item": [
+        {
+          "name": "Get All Members",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data.length > 0) {",
+                  "    pm.collectionVariables.set('memberId', jsonData.data[0]._id);",
+                  "}",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has pagination', () => pm.expect(jsonData.pagination).to.exist);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/members?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["members"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/members?search=John&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["members"],
+              "query": [
+                { "key": "search", "value": "John" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Single Member",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/members/{{memberId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["members", "{{memberId}}"]
+            }
+          }
+        },
+        {
+          "name": "Add New Member (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Rachel Zane\",\n  \"email\": \"rachel@example.com\",\n  \"phone\": \"+8801712345682\",\n  \"password\": \"member123\",\n  \"role\": \"member\",\n  \"joinDate\": \"2023-10-15\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/members",
+              "host": ["{{baseUrl}}"],
+              "path": ["members"]
+            }
+          }
+        },
+        {
+          "name": "Update Member (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"John Doe Updated\",\n  \"role\": \"member\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/members/{{memberId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["members", "{{memberId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Member Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/members/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["members", "stats"]
+            }
+          }
+        },
+        {
+          "name": "My Dashboard (Member)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{memberToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/members/me/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["members", "me", "dashboard"]
+            }
+          }
+        },
+        {
+          "name": "Toggle Meal Off",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{memberToken}}", "type": "string" }]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2023-10-25\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/members/me/meal-off",
+              "host": ["{{baseUrl}}"],
+              "path": ["members", "me", "meal-off"]
+            }
+          }
+        },
+        {
+          "name": "Delete (Deactivate) Member",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/members/{{memberId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["members", "{{memberId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💰 Deposits",
+      "item": [
+        {
+          "name": "Create Deposit (Bkash)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data._id) {",
+                  "    pm.collectionVariables.set('depositId', jsonData.data._id);",
+                  "}",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memberId\": \"{{memberId}}\",\n  \"amount\": 1500,\n  \"paymentMethod\": \"bkash\",\n  \"date\": \"2023-10-01\",\n  \"note\": \"October month deposit via Bkash\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/deposits",
+              "host": ["{{baseUrl}}"],
+              "path": ["deposits"]
+            }
+          }
+        },
+        {
+          "name": "Create Deposit (Cash)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memberId\": \"{{memberId}}\",\n  \"amount\": 1000,\n  \"paymentMethod\": \"cash\",\n  \"date\": \"2023-09-28\",\n  \"note\": \"Cash deposit\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/deposits",
+              "host": ["{{baseUrl}}"],
+              "path": ["deposits"]
+            }
+          }
+        },
+        {
+          "name": "Create Deposit (Bank Transfer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memberId\": \"{{memberId}}\",\n  \"amount\": 500,\n  \"paymentMethod\": \"bank_transfer\",\n  \"date\": \"2023-09-25\",\n  \"note\": \"Bank transfer deposit\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/deposits",
+              "host": ["{{baseUrl}}"],
+              "path": ["deposits"]
+            }
+          }
+        },
+        {
+          "name": "Get All Deposits",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deposits?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["deposits"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Deposits by Member",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deposits?memberId={{memberId}}&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["deposits"],
+              "query": [
+                { "key": "memberId", "value": "{{memberId}}" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get My Deposits (Member)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{memberToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deposits/me?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["deposits", "me"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify Deposit (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deposits/{{depositId}}/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["deposits", "{{depositId}}", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Request Verification (Member)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{memberToken}}", "type": "string" }]
+            },
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deposits/{{depositId}}/request-verification",
+              "host": ["{{baseUrl}}"],
+              "path": ["deposits", "{{depositId}}", "request-verification"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🍽️ Meals",
+      "item": [
+        {
+          "name": "Create Daily Meal Entry",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data._id) {",
+                  "    pm.collectionVariables.set('mealId', jsonData.data._id);",
+                  "}",
+                  "pm.test('Success', () => pm.expect(jsonData.success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2023-10-05\",\n  \"entries\": [\n    {\n      \"memberId\": \"{{memberId}}\",\n      \"breakfast\": 0,\n      \"lunch\": 1,\n      \"dinner\": 1,\n      \"guest\": 0\n    }\n  ],\n  \"isRamadanMode\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/meals",
+              "host": ["{{baseUrl}}"],
+              "path": ["meals"]
+            }
+          }
+        },
+        {
+          "name": "Create Another Day Meal",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2023-10-04\",\n  \"entries\": [\n    {\n      \"memberId\": \"{{memberId}}\",\n      \"breakfast\": 1,\n      \"lunch\": 1,\n      \"dinner\": 1,\n      \"guest\": 0\n    }\n  ],\n  \"isRamadanMode\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/meals",
+              "host": ["{{baseUrl}}"],
+              "path": ["meals"]
+            }
+          }
+        },
+        {
+          "name": "Get Meals for Month",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/meals?month=10&year=2023",
+              "host": ["{{baseUrl}}"],
+              "path": ["meals"],
+              "query": [
+                { "key": "month", "value": "10" },
+                { "key": "year", "value": "2023" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Meal by Date",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/meals/2023-10-05",
+              "host": ["{{baseUrl}}"],
+              "path": ["meals", "2023-10-05"]
+            }
+          }
+        },
+        {
+          "name": "Get Empty Date (Returns Form)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/meals/2023-10-10",
+              "host": ["{{baseUrl}}"],
+              "path": ["meals", "2023-10-10"]
+            }
+          }
+        },
+        {
+          "name": "Update Meal Entry",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"entries\": [\n    {\n      \"memberId\": \"{{memberId}}\",\n      \"breakfast\": 1,\n      \"lunch\": 1,\n      \"dinner\": 1,\n      \"guest\": 1\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/meals/{{mealId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["meals", "{{mealId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Monthly Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/meals/summary?month=10&year=2023",
+              "host": ["{{baseUrl}}"],
+              "path": ["meals", "summary"],
+              "query": [
+                { "key": "month", "value": "10" },
+                { "key": "year", "value": "2023" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛒 Expenses",
+      "item": [
+        {
+          "name": "Add Expense (Meat & Fish)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data._id) {",
+                  "    pm.collectionVariables.set('expenseId', jsonData.data._id);",
+                  "}",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2023-10-24\",\n  \"buyerId\": \"{{memberId}}\",\n  \"category\": \"meat_fish\",\n  \"items\": \"Chicken 2kg, Beef 1kg, Tilapia fish\",\n  \"amount\": 1410,\n  \"paymentSource\": \"mess_fund\",\n  \"adjustment\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/expenses",
+              "host": ["{{baseUrl}}"],
+              "path": ["expenses"]
+            }
+          }
+        },
+        {
+          "name": "Add Expense (Vegetables)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2023-10-23\",\n  \"buyerId\": \"{{memberId}}\",\n  \"category\": \"vegetables\",\n  \"items\": \"Potato, Onion, Tomato, Green items\",\n  \"amount\": 520,\n  \"paymentSource\": \"mess_fund\",\n  \"adjustment\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/expenses",
+              "host": ["{{baseUrl}}"],
+              "path": ["expenses"]
+            }
+          }
+        },
+        {
+          "name": "Add Expense (Groceries)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2023-10-22\",\n  \"buyerId\": \"{{memberId}}\",\n  \"category\": \"groceries\",\n  \"items\": \"Rice 25kg, Soybean Oil 5L, Spices\",\n  \"amount\": 3200,\n  \"paymentSource\": \"mess_fund\",\n  \"adjustment\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/expenses",
+              "host": ["{{baseUrl}}"],
+              "path": ["expenses"]
+            }
+          }
+        },
+        {
+          "name": "Add Expense (Utility)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2023-10-21\",\n  \"buyerId\": \"{{memberId}}\",\n  \"category\": \"utility\",\n  \"items\": \"Dish Soap, Floor Cleaner, Tissue Paper\",\n  \"amount\": 450,\n  \"paymentSource\": \"mess_fund\",\n  \"adjustment\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/expenses",
+              "host": ["{{baseUrl}}"],
+              "path": ["expenses"]
+            }
+          }
+        },
+        {
+          "name": "Get All Expenses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/expenses?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["expenses"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Expenses by Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/expenses?category=meat_fish&month=10&year=2023&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["expenses"],
+              "query": [
+                { "key": "category", "value": "meat_fish" },
+                { "key": "month", "value": "10" },
+                { "key": "year", "value": "2023" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Expenses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/expenses?search=Chicken&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["expenses"],
+              "query": [
+                { "key": "search", "value": "Chicken" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Expense",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1450,\n  \"items\": \"Chicken 2kg, Beef 1kg, Tilapia fish, Rui fish\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/expenses/{{expenseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["expenses", "{{expenseId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Expense Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/expenses/stats?month=10&year=2023",
+              "host": ["{{baseUrl}}"],
+              "path": ["expenses", "stats"],
+              "query": [
+                { "key": "month", "value": "10" },
+                { "key": "year", "value": "2023" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Expense",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/expenses/{{expenseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["expenses", "{{expenseId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Reports",
+      "item": [
+        {
+          "name": "Dashboard Overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "dashboard"]
+            }
+          }
+        },
+        {
+          "name": "Meal Rate Trend (Last 6 Months)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/meal-rate-trend?months=6",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "meal-rate-trend"],
+              "query": [
+                { "key": "months", "value": "6" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Expense Distribution",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/expense-distribution?month=10&year=2023",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "expense-distribution"],
+              "query": [
+                { "key": "month", "value": "10" },
+                { "key": "year", "value": "2023" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Monthly Settlement",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/settlement?month=10&year=2023",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "settlement"],
+              "query": [
+                { "key": "month", "value": "10" },
+                { "key": "year", "value": "2023" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚙️ Settings",
+      "item": [
+        {
+          "name": "Get Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["settings"]
+            }
+          }
+        },
+        {
+          "name": "Update Settings (Admin)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messName\": \"Mess Manager\",\n  \"mealRateCalculation\": \"variable\",\n  \"defaultCurrency\": \"BDT\",\n  \"ramadanMode\": false,\n  \"notificationReminders\": true,\n  \"monthlyBudget\": 20000,\n  \"mealOffDeadlineHour\": 22\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["settings"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile Picture",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "profilePicture",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "fullName",
+                  "value": "Admin User",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/settings/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["settings", "profile"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

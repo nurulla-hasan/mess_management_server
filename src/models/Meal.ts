@@ -1,0 +1,93 @@
+import mongoose, { Schema, Types } from 'mongoose';
+
+export interface IMealEntry {
+  memberId: Types.ObjectId;
+  breakfast: number;
+  lunch: number;
+  dinner: number;
+  guest: number;
+}
+
+export interface IMeal {
+  date: Date;
+  entries: IMealEntry[];
+  totalMeals: number;
+  addedBy: Types.ObjectId;
+  isRamadanMode: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const mealEntrySchema = new Schema<IMealEntry>(
+  {
+    memberId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Member',
+      required: true,
+    },
+    breakfast: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    lunch: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    dinner: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    guest: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+  },
+  { _id: false }
+);
+
+const mealSchema = new Schema<IMeal>(
+  {
+    date: {
+      type: Date,
+      required: [true, 'Date is required'],
+      unique: true,
+    },
+    entries: {
+      type: [mealEntrySchema],
+      default: [],
+    },
+    totalMeals: {
+      type: Number,
+      default: 0,
+    },
+    addedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    isRamadanMode: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// Calculate totalMeals before saving
+mealSchema.pre('save', function () {
+  this.totalMeals = this.entries.reduce((sum, entry) => {
+    return sum + entry.breakfast + entry.lunch + entry.dinner + entry.guest;
+  }, 0);
+});
+
+const Meal = mongoose.model<IMeal>('Meal', mealSchema);
+export default Meal;
