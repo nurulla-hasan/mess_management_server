@@ -242,7 +242,7 @@ export const getDashboardOverview = async (req: Request, res: Response): Promise
     const recentExpenses = await Expense.find()
       .populate({
         path: 'buyerId',
-        populate: { path: 'userId', select: 'fullName' },
+        populate: { path: 'userId', select: 'fullName profilePicture' },
       })
       .sort({ createdAt: -1 })
       .limit(5);
@@ -250,7 +250,7 @@ export const getDashboardOverview = async (req: Request, res: Response): Promise
     const recentDeposits = await Deposit.find()
       .populate({
         path: 'memberId',
-        populate: { path: 'userId', select: 'fullName' },
+        populate: { path: 'userId', select: 'fullName profilePicture' },
       })
       .sort({ createdAt: -1 })
       .limit(5);
