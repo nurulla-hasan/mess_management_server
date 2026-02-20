@@ -12,9 +12,22 @@ export const createDeposit = async (req: Request, res: Response): Promise<void> 
 
     // Allow admin to specify memberId
     let memberId = bodyMemberId;
+    let status = 'pending';
+    let verifiedBy = undefined;
     
-    if (req.user?.role === 'admin' && memberId) {
-       // Admin is creating deposit for someone else
+    if (req.user?.role === 'admin') {
+       // If admin is creating, it's automatically approved
+       status = 'approved';
+       verifiedBy = req.user._id;
+       
+       if (!memberId) {
+           const member = await Member.findOne({ userId });
+           if (!member) {
+               sendError(res, 'Member ID is required', 400);
+               return;
+           }
+           memberId = member._id;
+       }
     } else {
        // Regular user or admin creating for self (default)
        const member = await Member.findOne({ userId });
@@ -31,8 +44,19 @@ export const createDeposit = async (req: Request, res: Response): Promise<void> 
       paymentMethod,
       date: date || new Date(),
       note,
-      status: 'pending',
+      status,
+      verifiedBy
     });
+
+    // If approved, update member balance
+    if (status === 'approved') {
+        const member = await Member.findById(memberId);
+        if (member) {
+            member.totalDeposits += amount;
+            member.currentBalance += amount;
+            await member.save();
+        }
+    }
 
     sendSuccess(res, { deposit }, 'Deposit request created successfully', 201);
   } catch (error) {

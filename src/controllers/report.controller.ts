@@ -45,6 +45,116 @@ export const getMealRateTrend = async (req: Request, res: Response): Promise<voi
   }
 };
 
+// @desc    Get member dashboard overview data
+// @route   GET /api/reports/member-dashboard
+export const getMemberDashboard = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?._id;
+    const member = await Member.findOne({ userId }).populate('userId', 'fullName profilePicture');
+    
+    if (!member) {
+      sendError(res, 'Member profile not found', 404);
+      return;
+    }
+
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
+    // 1. Calculate Meal Rate
+    const allMeals = await Meal.find({ date: { $gte: startDate, $lte: endDate } });
+    const totalAllMeals = allMeals.reduce((sum, m) => sum + m.totalMeals, 0);
+    
+    const expenses = await Expense.find({ date: { $gte: startDate, $lte: endDate } });
+    const bazarCost = expenses
+      .filter((e) => ['meat_fish', 'vegetables', 'groceries'].includes(e.category))
+      .reduce((sum, e) => sum + e.amount - e.adjustment, 0);
+    
+    const mealRate = totalAllMeals > 0 ? bazarCost / totalAllMeals : 0;
+
+    // 2. Member Meal Stats
+    let memberMeals = 0;
+    allMeals.forEach((meal) => {
+      const entry = meal.entries.find((e) => e.memberId.toString() === member._id.toString());
+      if (entry) {
+        memberMeals += entry.breakfast + entry.lunch + entry.dinner + entry.guest;
+      }
+    });
+
+    // 3. Fixed Costs Share
+    const fixedExpenses = expenses
+      .filter((e) => ['rent', 'gas', 'utility', 'other'].includes(e.category))
+      .reduce((sum, e) => sum + e.amount - e.adjustment, 0);
+    
+    const activeMembersCount = await Member.countDocuments({ status: 'active' });
+    const fixedShare = activeMembersCount > 0 ? fixedExpenses / activeMembersCount : 0;
+
+    // 4. Financials
+    const estimatedCost = (memberMeals * mealRate) + fixedShare;
+    
+    // Get total deposited this month
+    const deposits = await Deposit.find({
+      memberId: member._id,
+      status: 'approved',
+      date: { $gte: startDate, $lte: endDate },
+    });
+    let totalDeposited = deposits.reduce((sum, d) => sum + d.amount, 0);
+
+    // Add personal expenses as deposit
+    const personalExpenses = await Expense.find({
+        buyerId: member._id,
+        paymentSource: 'personal',
+        date: { $gte: startDate, $lte: endDate },
+    });
+    totalDeposited += personalExpenses.reduce((sum, e) => sum + e.amount - e.adjustment, 0);
+
+    // 5. Recent Activity
+    const recentMeals = await Meal.find({
+        'entries.memberId': member._id,
+        date: { $gte: startDate, $lte: endDate }
+    }).sort({ date: -1 }).limit(5);
+
+    const recentDeposits = await Deposit.find({
+        memberId: member._id
+    }).sort({ createdAt: -1 }).limit(5);
+
+    sendSuccess(res, {
+      memberInfo: {
+        fullName: (member.userId as any).fullName,
+        profilePicture: (member.userId as any).profilePicture,
+        role: req.user?.role
+      },
+      mealStats: {
+        totalMeals: memberMeals,
+        mealRate: Math.round(mealRate * 100) / 100,
+        estimatedCost: Math.round(estimatedCost * 100) / 100
+      },
+      financials: {
+        totalDeposited: Math.round(totalDeposited * 100) / 100,
+        totalLiability: Math.round(estimatedCost * 100) / 100,
+        currentBalance: Math.round((totalDeposited - estimatedCost) * 100) / 100
+      },
+      recentMeals: recentMeals.map(m => {
+          const entry = m.entries.find(e => e.memberId.toString() === member._id.toString());
+          return {
+              date: m.date,
+              breakfast: entry?.breakfast || 0,
+              lunch: entry?.lunch || 0,
+              dinner: entry?.dinner || 0,
+              guest: entry?.guest || 0
+          };
+      }),
+      recentDeposits,
+      month: startDate.toLocaleString('default', { month: 'long' })
+    });
+
+  } catch (error) {
+    sendError(res, (error as Error).message);
+  }
+};
+
 // @desc    Get expense distribution for a month
 // @route   GET /api/reports/expense-distribution?month=10&year=2023
 export const getExpenseDistribution = async (req: Request, res: Response): Promise<void> => {
@@ -156,10 +266,20 @@ export const getSettlement = async (req: Request, res: Response): Promise<void> 
         // Get deposits for this member in this month
         const deposits = await Deposit.find({
           memberId: member._id,
-          status: 'verified',
+          status: 'approved',
           date: { $gte: startDate, $lte: endDate },
         });
-        const deposited = deposits.reduce((sum, d) => sum + d.amount, 0);
+        
+        let deposited = deposits.reduce((sum, d) => sum + d.amount, 0);
+
+        // Get personal expenses for this member (treated as deposit)
+        const personalExpenses = await Expense.find({
+            buyerId: member._id,
+            paymentSource: 'personal',
+            date: { $gte: startDate, $lte: endDate },
+        });
+        const personalExpenseAmount = personalExpenses.reduce((sum, e) => sum + e.amount - e.adjustment, 0);
+        deposited += personalExpenseAmount;
 
         const balance = deposited - totalLiability;
 
