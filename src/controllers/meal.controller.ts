@@ -80,15 +80,16 @@ export const getMealByDate = async (req: Request, res: Response): Promise<void> 
       populate: { path: 'userId', select: 'fullName profilePicture' },
     });
 
+    // Get all active members to ensure everyone is listed
+    const activeMembers = await Member.find({ status: 'active' }).populate('userId', 'fullName profilePicture');
+
     if (!meal) {
       // Return empty with all active members for form
-      const members = await Member.find({ status: 'active' }).populate('userId', 'fullName profilePicture');
-      
       const targetDateStr = targetDate.toISOString().split('T')[0];
 
       sendSuccess(res, {
         date: req.params.date,
-        entries: members.map((m) => {
+        entries: activeMembers.map((m) => {
           const isMealOff = m.mealOffDates.some(d => 
             new Date(d).toISOString().split('T')[0] === targetDateStr
           );
@@ -108,7 +109,52 @@ export const getMealByDate = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    sendSuccess(res, meal);
+    // Merge existing entries with active members
+    // This handles cases where new members were added after the meal record was created
+    const existingEntriesMap = new Map(
+      meal.entries.map((entry: any) => [entry.memberId._id.toString(), entry])
+    );
+
+    const activeMemberIds = new Set(activeMembers.map(m => m._id.toString()));
+
+    const mergedEntries = activeMembers.map((m) => {
+      const existingEntry = existingEntriesMap.get(m._id.toString());
+      
+      if (existingEntry) {
+        return existingEntry;
+      }
+
+      // Default entry for active member not in the current meal record
+      return {
+        memberId: m, // Structure needs to match populated memberId in existing entries
+        breakfast: 0,
+        lunch: 0,
+        dinner: 0,
+        guest: 0,
+      };
+    });
+
+    // Add existing entries for members who are no longer active (to preserve history)
+    meal.entries.forEach((entry: any) => {
+      if (!activeMemberIds.has(entry.memberId._id.toString())) {
+        mergedEntries.push(entry);
+      }
+    });
+
+    // We return a constructed object instead of the mongoose document directly
+    // to include the merged entries
+    const responseData = {
+      _id: meal._id,
+      date: meal.date,
+      entries: mergedEntries,
+      totalMeals: meal.totalMeals,
+      addedBy: meal.addedBy,
+      isRamadanMode: meal.isRamadanMode,
+      createdAt: meal.createdAt,
+      updatedAt: meal.updatedAt
+    };
+
+    sendSuccess(res, responseData);
   } catch (error) {
     sendError(res, (error as Error).message);
   }

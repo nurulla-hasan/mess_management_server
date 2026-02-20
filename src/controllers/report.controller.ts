@@ -6,15 +6,23 @@ import Deposit from '../models/Deposit';
 import { sendSuccess, sendError } from '../utils/helpers';
 
 // @desc    Get monthly meal rate trend (last N months)
-// @route   GET /api/reports/meal-rate-trend?months=6
+// @route   GET /api/reports/meal-rate-trend?months=6&month=10&year=2023
 export const getMealRateTrend = async (req: Request, res: Response): Promise<void> => {
   try {
     const monthsBack = parseInt(req.query.months as string) || 6;
-    const now = new Date();
+    
+    // Determine reference date (default to current date if not provided)
+    let refDate = new Date();
+    if (req.query.month && req.query.year) {
+      const m = parseInt(req.query.month as string);
+      const y = parseInt(req.query.year as string);
+      refDate = new Date(y, m - 1, 1);
+    }
+
     const trend: Array<{ month: string; year: number; rate: number }> = [];
 
     for (let i = monthsBack - 1; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const date = new Date(refDate.getFullYear(), refDate.getMonth() - i, 1);
       const month = date.getMonth() + 1;
       const year = date.getFullYear();
       const startDate = new Date(year, month - 1, 1);
