@@ -7,17 +7,26 @@ import { sendSuccess, sendError } from '../utils/helpers';
 // @route   POST /api/deposits
 export const createDeposit = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { amount, paymentMethod, date, note } = req.body;
+    const { amount, paymentMethod, date, note, memberId: bodyMemberId } = req.body;
     const userId = req.user?._id;
 
-    const member = await Member.findOne({ userId });
-    if (!member) {
-      sendError(res, 'Member profile not found', 404);
-      return;
+    // Allow admin to specify memberId
+    let memberId = bodyMemberId;
+    
+    if (req.user?.role === 'admin' && memberId) {
+       // Admin is creating deposit for someone else
+    } else {
+       // Regular user or admin creating for self (default)
+       const member = await Member.findOne({ userId });
+       if (!member) {
+         sendError(res, 'Member profile not found', 404);
+         return;
+       }
+       memberId = member._id;
     }
 
     const deposit = await Deposit.create({
-      memberId: member._id,
+      memberId,
       amount,
       paymentMethod,
       date: date || new Date(),

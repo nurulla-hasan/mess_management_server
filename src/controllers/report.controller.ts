@@ -165,8 +165,8 @@ export const getSettlement = async (req: Request, res: Response): Promise<void> 
 
         return {
           memberId: member._id,
-          memberName: (member.userId as any).fullName,
-          profilePicture: (member.userId as any).profilePicture,
+          memberName: (member.userId as any)?.fullName || 'Unknown Member',
+          profilePicture: (member.userId as any)?.profilePicture || '',
           meals: memberMeals,
           mealCost: Math.round(mealCost * 100) / 100,
           fixedShare: Math.round(fixedSharePerMember * 100) / 100,
