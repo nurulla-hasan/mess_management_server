@@ -73,6 +73,7 @@ export const updateSettingsProfile = async (req: Request, res: Response): Promis
     const updates: any = {};
 
     if (req.body.fullName) updates.fullName = req.body.fullName;
+    if (req.body.phone) updates.phone = req.body.phone;
     if (req.body.email) {
       // Check uniqueness
       const existing = await User.findOne({ email: req.body.email, _id: { $ne: req.user?._id } });

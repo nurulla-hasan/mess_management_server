@@ -18,9 +18,33 @@ export const createExpense = async (req: Request, res: Response): Promise<void> 
       receiptUrl = result.url;
     }
 
+    // Determine status based on role
+    const status = req.user?.role === 'admin' ? 'approved' : 'pending';
+    const verifiedBy = req.user?.role === 'admin' ? req.user._id : undefined;
+
+    // Handle buyerId: if not provided and user is member, use their memberId
+    let finalBuyerId = buyerId;
+    if (!finalBuyerId) {
+      if (req.user?.role === 'member') {
+        const Member = (await import('../models/Member')).default;
+        const member = await Member.findOne({ userId: req.user._id });
+        if (member) {
+          finalBuyerId = member._id;
+        } else {
+           // Fallback or error if member profile not found? 
+           // Usually member profile exists if they are logged in as member
+        }
+      }
+    }
+
+    if (!finalBuyerId) {
+        sendError(res, 'Buyer ID is required', 400);
+        return;
+    }
+
     const expense = await Expense.create({
       date: new Date(date),
-      buyerId,
+      buyerId: finalBuyerId,
       category,
       items,
       amount,
@@ -28,13 +52,17 @@ export const createExpense = async (req: Request, res: Response): Promise<void> 
       paymentSource: paymentSource || 'mess_fund',
       adjustment: adjustment || 0,
       addedBy: req.user?._id,
+      status,
+      verifiedBy,
     });
 
-    // Update mess settings total spent
-    await MessSettings.findOneAndUpdate(
-      {},
-      { $inc: { totalSpent: amount - (adjustment || 0) } }
-    );
+    // Update mess settings total spent ONLY if approved
+    if (status === 'approved') {
+      await MessSettings.findOneAndUpdate(
+        {},
+        { $inc: { totalSpent: amount - (adjustment || 0) } }
+      );
+    }
 
     const populatedExpense = await Expense.findById(expense._id)
       .populate({
@@ -43,7 +71,60 @@ export const createExpense = async (req: Request, res: Response): Promise<void> 
       })
       .populate('addedBy', 'fullName');
 
-    sendSuccess(res, populatedExpense, 'Expense added successfully', 201);
+    const message = status === 'approved' ? 'Expense added successfully' : 'Expense request submitted for approval';
+    sendSuccess(res, populatedExpense, message, 201);
+  } catch (error) {
+    sendError(res, (error as Error).message);
+  }
+};
+
+// @desc    Update expense status (Admin)
+// @route   PUT /api/expenses/:id/status
+export const updateExpenseStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { status } = req.body;
+    const expenseId = req.params.id;
+    const adminId = req.user?._id;
+
+    const expense = await Expense.findById(expenseId);
+    if (!expense) {
+      sendError(res, 'Expense not found', 404);
+      return;
+    }
+
+    const oldStatus = expense.status;
+
+    // If status is same, do nothing
+    if (oldStatus === status) {
+      sendSuccess(res, { expense }, 'Status unchanged');
+      return;
+    }
+
+    // Handle status change
+    if (status === 'approved' && oldStatus !== 'approved') {
+      // Add to total spent
+      await MessSettings.findOneAndUpdate(
+        {},
+        { $inc: { totalSpent: expense.amount - (expense.adjustment || 0) } }
+      );
+      expense.verifiedBy = adminId;
+    } else if (oldStatus === 'approved' && status !== 'approved') {
+      // Remove from total spent if un-approving
+      await MessSettings.findOneAndUpdate(
+        {},
+        { $inc: { totalSpent: -(expense.amount - (expense.adjustment || 0)) } }
+      );
+      if (status === 'rejected') {
+        expense.verifiedBy = adminId;
+      } else {
+        expense.verifiedBy = undefined;
+      }
+    }
+
+    expense.status = status;
+    await expense.save();
+
+    sendSuccess(res, { expense }, 'Expense status updated successfully');
   } catch (error) {
     sendError(res, (error as Error).message);
   }
@@ -58,10 +139,16 @@ export const getExpenses = async (req: Request, res: Response): Promise<void> =>
     const month = parseInt(req.query.month as string);
     const year = parseInt(req.query.year as string);
     const search = req.query.search as string;
+    const buyerId = req.query.buyerId as string;
 
     const filter: any = {};
 
     if (category) filter.category = category;
+    if (buyerId) filter.buyerId = buyerId;
+    
+    // Allow filtering by status
+    const status = req.query.status as string;
+    if (status) filter.status = status;
 
     if (month && year) {
       const startDate = new Date(year, month - 1, 1);
@@ -127,8 +214,8 @@ export const updateExpense = async (req: Request, res: Response): Promise<void> 
       .populate('addedBy', 'fullName');
 
     // Adjust mess settings totalSpent
-    if (updatedExpense) {
-      const newAmount = updatedExpense.amount - updatedExpense.adjustment;
+    if (updatedExpense && updatedExpense.status === 'approved') {
+      const newAmount = updatedExpense.amount - (updatedExpense.adjustment || 0);
       const diff = newAmount - oldAmount;
       if (diff !== 0) {
         await MessSettings.findOneAndUpdate({}, { $inc: { totalSpent: diff } });
@@ -152,8 +239,10 @@ export const deleteExpense = async (req: Request, res: Response): Promise<void> 
     }
 
     // Adjust mess settings totalSpent
-    const netAmount = expense.amount - expense.adjustment;
-    await MessSettings.findOneAndUpdate({}, { $inc: { totalSpent: -netAmount } });
+    if (expense.status === 'approved') {
+      const netAmount = expense.amount - (expense.adjustment || 0);
+      await MessSettings.findOneAndUpdate({}, { $inc: { totalSpent: -netAmount } });
+    }
 
     await Expense.findByIdAndDelete(req.params.id);
     sendSuccess(res, null, 'Expense deleted');
@@ -174,9 +263,10 @@ export const getExpenseStats = async (req: Request, res: Response): Promise<void
 
     const expenses = await Expense.find({
       date: { $gte: startDate, $lte: endDate },
+      status: 'approved',
     });
 
-    const totalExpense = expenses.reduce((sum, e) => sum + e.amount - e.adjustment, 0);
+    const totalExpense = expenses.reduce((sum, e) => sum + e.amount - (e.adjustment || 0), 0);
 
     // Category breakdown
     const categoryBreakdown: Record<string, number> = {};

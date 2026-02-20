@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const createExpenseSchema = z.object({
   date: z.string().min(1, 'Date is required'),
-  buyerId: z.string().min(1, 'Buyer is required'),
+  buyerId: z.string().optional(),
   category: z.enum(['meat_fish', 'vegetables', 'groceries', 'utility', 'rent', 'gas', 'other']),
   items: z.string().min(1, 'Items description is required'),
   amount: z.coerce.number().positive('Amount must be positive'),

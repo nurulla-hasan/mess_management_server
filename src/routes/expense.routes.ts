@@ -5,6 +5,7 @@ import {
   updateExpense,
   deleteExpense,
   getExpenseStats,
+  updateExpenseStatus,
 } from '../controllers/expense.controller';
 import { requireAuth, requireAdmin } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate.middleware';
@@ -17,8 +18,9 @@ router.use(requireAuth);
 
 router.get('/stats', getExpenseStats);
 router.get('/', getExpenses);
-router.post('/', requireAdmin, uploadSingle('receipt'), validate(createExpenseSchema), createExpense);
+router.post('/', uploadSingle('receipt'), validate(createExpenseSchema), createExpense);
 router.put('/:id', requireAdmin, uploadSingle('receipt'), validate(updateExpenseSchema), updateExpense);
+router.put('/:id/status', requireAdmin, updateExpenseStatus);
 router.delete('/:id', requireAdmin, deleteExpense);
 
 export default router;

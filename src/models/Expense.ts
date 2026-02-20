@@ -10,6 +10,8 @@ export interface IExpense extends Document {
   paymentSource: 'mess_fund' | 'personal';
   adjustment: number; // Change returned
   addedBy: Types.ObjectId;
+  status: 'pending' | 'approved' | 'rejected';
+  verifiedBy?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,6 +60,15 @@ const expenseSchema = new Schema<IExpense>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
+    },
+    verifiedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
     },
   },
   {
