@@ -5,6 +5,7 @@ import {
   getMyDeposits,
   updateDepositStatus,
   deleteDeposit,
+  getDepositSummary,
 } from '../controllers/deposit.controller';
 import { requireAuth, requireAdmin } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate.middleware';
@@ -12,9 +13,11 @@ import { createDepositSchema, updateDepositStatusSchema } from '../validators/de
 
 const router = express.Router();
 
-// Member routes
+// Public/Member routes
+router.get('/summary', requireAuth, getDepositSummary);
 router.post('/', requireAuth, validate(createDepositSchema), createDeposit);
 router.get('/my-deposits', requireAuth, getMyDeposits);
+
 
 // Admin routes
 router.get('/', requireAuth, requireAdmin, getAllDeposits);

@@ -71,6 +71,34 @@ export const getAllDeposits = async (req: Request, res: Response): Promise<void>
   }
 };
 
+// @desc    Get monthly deposit summary
+// @route   GET /api/deposits/summary?month=10&year=2023
+export const getDepositSummary = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const month = parseInt(req.query.month as string) || new Date().getMonth() + 1;
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
+    const deposits = await Deposit.find({
+      date: { $gte: startDate, $lte: endDate },
+      status: 'approved',
+    });
+
+    const totalCollected = deposits.reduce((sum, d) => sum + d.amount, 0);
+
+    sendSuccess(res, {
+      month,
+      year,
+      totalCollected,
+      count: deposits.length,
+    });
+  } catch (error) {
+    sendError(res, (error as Error).message);
+  }
+};
+
 // @desc    Get my deposits (Member)
 // @route   GET /api/deposits/my-deposits
 export const getMyDeposits = async (req: Request, res: Response): Promise<void> => {
