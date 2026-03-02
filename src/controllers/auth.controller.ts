@@ -36,8 +36,16 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     });
 
     // Generate tokens
-    const accessToken = generateToken(user._id.toString(), user.role);
-    const refreshToken = generateRefreshToken(user._id.toString(), user.role);
+    const tokenPayload = {
+      userId: user._id.toString(),
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      profilePicture: user.profilePicture,
+    };
+    const accessToken = generateToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
 
     // Send verification email
     const message = `
@@ -271,8 +279,17 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Generate tokens
-    const accessToken = generateToken(user._id.toString(), user.role, user.messId?.toString());
-    const refreshToken = generateRefreshToken(user._id.toString(), user.role, user.messId?.toString());
+    const tokenPayload = {
+      userId: user._id.toString(),
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      profilePicture: user.profilePicture,
+      messId: user.messId?.toString(),
+    };
+    const accessToken = generateToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
 
     sendSuccess(res, {
       accessToken,
@@ -310,7 +327,16 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     }
 
     // Generate new access token
-    const accessToken = generateToken(user._id.toString(), user.role, user.messId?.toString());
+    const tokenPayload = {
+      userId: user._id.toString(),
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      profilePicture: user.profilePicture,
+      messId: user.messId?.toString(),
+    };
+    const accessToken = generateToken(tokenPayload);
 
     sendSuccess(res, { accessToken }, 'Token refreshed successfully');
   } catch (error) {
