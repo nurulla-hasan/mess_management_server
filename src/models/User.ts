@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
@@ -7,6 +7,7 @@ export interface IUser extends Document {
   phone: string;
   password: string;
   role: 'admin' | 'member';
+  messId?: Types.ObjectId;
   profilePicture?: string;
   isActive: boolean;
   isVerified: boolean;
@@ -50,6 +51,10 @@ const UserSchema: Schema = new Schema(
       type: String,
       enum: ['admin', 'member'],
       default: 'member',
+    },
+    messId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Mess',
     },
     profilePicture: {
       type: String,

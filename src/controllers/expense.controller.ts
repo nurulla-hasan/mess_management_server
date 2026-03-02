@@ -9,6 +9,12 @@ import { uploadToCloudinary } from '../utils/cloudinary';
 export const createExpense = async (req: Request, res: Response): Promise<void> => {
   try {
     const { date, buyerId, category, items, amount, paymentSource, adjustment } = req.body;
+    const messId = req.user?.messId;
+
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
 
     let receiptUrl = '';
 
@@ -27,12 +33,9 @@ export const createExpense = async (req: Request, res: Response): Promise<void> 
     if (!finalBuyerId) {
       if (req.user?.role === 'member') {
         const Member = (await import('../models/Member')).default;
-        const member = await Member.findOne({ userId: req.user._id });
+        const member = await Member.findOne({ userId: req.user._id, messId });
         if (member) {
           finalBuyerId = member._id;
-        } else {
-           // Fallback or error if member profile not found? 
-           // Usually member profile exists if they are logged in as member
         }
       }
     }
@@ -44,6 +47,7 @@ export const createExpense = async (req: Request, res: Response): Promise<void> 
 
     const expense = await Expense.create({
       date: new Date(date),
+      messId,
       buyerId: finalBuyerId,
       category,
       items,
@@ -59,7 +63,7 @@ export const createExpense = async (req: Request, res: Response): Promise<void> 
     // Update mess settings total spent ONLY if approved
     if (status === 'approved') {
       await MessSettings.findOneAndUpdate(
-        {},
+        { messId },
         { $inc: { totalSpent: amount - (adjustment || 0) } }
       );
     }
@@ -85,10 +89,16 @@ export const updateExpenseStatus = async (req: Request, res: Response): Promise<
     const { status } = req.body;
     const expenseId = req.params.id;
     const adminId = req.user?._id;
+    const messId = req.user?.messId;
 
-    const expense = await Expense.findById(expenseId);
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
+
+    const expense = await Expense.findOne({ _id: expenseId, messId });
     if (!expense) {
-      sendError(res, 'Expense not found', 404);
+      sendError(res, 'Expense not found or not authorized', 404);
       return;
     }
 
@@ -104,14 +114,14 @@ export const updateExpenseStatus = async (req: Request, res: Response): Promise<
     if (status === 'approved' && oldStatus !== 'approved') {
       // Add to total spent
       await MessSettings.findOneAndUpdate(
-        {},
+        { messId },
         { $inc: { totalSpent: expense.amount - (expense.adjustment || 0) } }
       );
       expense.verifiedBy = adminId;
     } else if (oldStatus === 'approved' && status !== 'approved') {
       // Remove from total spent if un-approving
       await MessSettings.findOneAndUpdate(
-        {},
+        { messId },
         { $inc: { totalSpent: -(expense.amount - (expense.adjustment || 0)) } }
       );
       if (status === 'rejected') {
@@ -140,8 +150,14 @@ export const getExpenses = async (req: Request, res: Response): Promise<void> =>
     const year = parseInt(req.query.year as string);
     const search = req.query.search as string;
     const buyerId = req.query.buyerId as string;
+    const messId = req.user?.messId;
 
-    const filter: any = {};
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
+
+    const filter: any = { messId };
 
     if (category) filter.category = category;
     if (buyerId) filter.buyerId = buyerId;
@@ -181,9 +197,10 @@ export const getExpenses = async (req: Request, res: Response): Promise<void> =>
 // @route   PUT /api/expenses/:id
 export const updateExpense = async (req: Request, res: Response): Promise<void> => {
   try {
-    const expense = await Expense.findById(req.params.id);
+    const messId = req.user?.messId;
+    const expense = await Expense.findOne({ _id: req.params.id, messId });
     if (!expense) {
-      sendError(res, 'Expense not found', 404);
+      sendError(res, 'Expense not found or not authorized', 404);
       return;
     }
 
@@ -203,7 +220,7 @@ export const updateExpense = async (req: Request, res: Response): Promise<void> 
       updates.receiptUrl = result.url;
     }
 
-    const updatedExpense = await Expense.findByIdAndUpdate(req.params.id, updates, {
+    const updatedExpense = await Expense.findOneAndUpdate({ _id: req.params.id, messId }, updates, {
       new: true,
       runValidators: true,
     })
@@ -218,7 +235,10 @@ export const updateExpense = async (req: Request, res: Response): Promise<void> 
       const newAmount = updatedExpense.amount - (updatedExpense.adjustment || 0);
       const diff = newAmount - oldAmount;
       if (diff !== 0) {
-        await MessSettings.findOneAndUpdate({}, { $inc: { totalSpent: diff } });
+        await MessSettings.findOneAndUpdate(
+          { messId },
+          { $inc: { totalSpent: diff } }
+        );
       }
     }
 
@@ -232,19 +252,20 @@ export const updateExpense = async (req: Request, res: Response): Promise<void> 
 // @route   DELETE /api/expenses/:id
 export const deleteExpense = async (req: Request, res: Response): Promise<void> => {
   try {
-    const expense = await Expense.findById(req.params.id);
+    const messId = req.user?.messId;
+    const expense = await Expense.findOne({ _id: req.params.id, messId });
     if (!expense) {
-      sendError(res, 'Expense not found', 404);
+      sendError(res, 'Expense not found or not authorized', 404);
       return;
     }
 
     // Adjust mess settings totalSpent
     if (expense.status === 'approved') {
       const netAmount = expense.amount - (expense.adjustment || 0);
-      await MessSettings.findOneAndUpdate({}, { $inc: { totalSpent: -netAmount } });
+      await MessSettings.findOneAndUpdate({ messId }, { $inc: { totalSpent: -netAmount } });
     }
 
-    await Expense.findByIdAndDelete(req.params.id);
+    await Expense.findOneAndDelete({ _id: req.params.id, messId });
     sendSuccess(res, null, 'Expense deleted');
   } catch (error) {
     sendError(res, (error as Error).message);
@@ -257,11 +278,18 @@ export const getExpenseStats = async (req: Request, res: Response): Promise<void
   try {
     const month = parseInt(req.query.month as string) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const messId = req.user?.messId;
+
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
 
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
 
     const expenses = await Expense.find({
+      messId,
       date: { $gte: startDate, $lte: endDate },
       status: 'approved',
     });
@@ -275,7 +303,7 @@ export const getExpenseStats = async (req: Request, res: Response): Promise<void
     });
 
     // Get budget from settings
-    const settings = await MessSettings.findOne();
+    const settings = await MessSettings.findOne({ messId });
     const remainingBudget = (settings?.monthlyBudget || 0) - totalExpense;
 
     sendSuccess(res, {

@@ -11,11 +11,18 @@ export const getAllMembers = async (req: Request, res: Response): Promise<void> 
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
     const search = req.query.search as string;
+    const messId = req.user?.messId;
 
-    let query: any = {};
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
+
+    let query: any = { messId };
 
     if (search) {
       const users = await User.find({
+        messId,
         $or: [
           { fullName: { $regex: search, $options: 'i' } },
           { email: { $regex: search, $options: 'i' } },
@@ -53,10 +60,14 @@ export const getAllMembers = async (req: Request, res: Response): Promise<void> 
 // @route   GET /api/members/:id
 export const getMemberById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const member = await Member.findById(req.params.id).populate('userId', '-password');
+    const messId = req.user?.messId;
+    const member = await Member.findOne({
+      _id: req.params.id,
+      messId,
+    }).populate('userId', '-password');
 
     if (!member) {
-      sendError(res, 'Member not found', 404);
+      sendError(res, 'Member not found or not authorized', 404);
       return;
     }
 
@@ -71,6 +82,12 @@ export const getMemberById = async (req: Request, res: Response): Promise<void> 
 export const createMember = async (req: Request, res: Response): Promise<void> => {
     try {
         const { fullName, email, phone, password, role, isActive } = req.body;
+        const messId = req.user?.messId;
+
+        if (!messId) {
+            sendError(res, 'User is not associated with any mess', 400);
+            return;
+        }
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
@@ -84,12 +101,14 @@ export const createMember = async (req: Request, res: Response): Promise<void> =
             phone,
             password,
             role: role || 'member',
+            messId,
             isActive: isActive !== undefined ? isActive : true,
             isVerified: true
         });
 
         const member = await Member.create({
-            userId: user._id
+            userId: user._id,
+            messId
         });
 
         sendSuccess(res, { member, user }, 'Member created successfully', 201);
@@ -104,15 +123,16 @@ export const createMember = async (req: Request, res: Response): Promise<void> =
 export const updateMember = async (req: Request, res: Response): Promise<void> => {
   try {
     const { fullName, email, phone, role, isActive, status } = req.body;
+    const messId = req.user?.messId;
     
-    const member = await Member.findById(req.params.id);
+    const member = await Member.findOne({ _id: req.params.id, messId });
     if (!member) {
-      sendError(res, 'Member not found', 404);
+      sendError(res, 'Member not found or not authorized', 404);
       return;
     }
 
     // Update User details
-    const user = await User.findById(member.userId);
+    const user = await User.findOne({ _id: member.userId, messId });
     if (user) {
         if (fullName) user.fullName = fullName;
         if (email) user.email = email;
@@ -136,13 +156,14 @@ export const updateMember = async (req: Request, res: Response): Promise<void> =
 // @route   DELETE /api/members/:id
 export const deleteMember = async (req: Request, res: Response): Promise<void> => {
   try {
-    const member = await Member.findById(req.params.id);
+    const messId = req.user?.messId;
+    const member = await Member.findOne({ _id: req.params.id, messId });
     if (!member) {
-      sendError(res, 'Member not found', 404);
+      sendError(res, 'Member not found or not authorized', 404);
       return;
     }
 
-    const user = await User.findById(member.userId);
+    const user = await User.findOne({ _id: member.userId, messId });
     if (user) {
         user.isActive = false;
         await user.save();
@@ -161,7 +182,8 @@ export const deleteMember = async (req: Request, res: Response): Promise<void> =
 // @route   GET /api/members/stats
 export const getMemberStats = async (req: Request, res: Response): Promise<void> => {
     try {
-        const totalMembers = await Member.countDocuments({ status: 'active' });
+        const messId = req.user?.messId;
+        const totalMembers = await Member.countDocuments({ status: 'active', messId });
         
         const stats = {
             totalMembers,
@@ -170,7 +192,7 @@ export const getMemberStats = async (req: Request, res: Response): Promise<void>
         };
 
         const balanceAgg = await Member.aggregate([
-            { $match: { status: 'active' } },
+            { $match: { status: 'active', messId } },
             { $group: { _id: null, total: { $sum: '$currentBalance' } } }
         ]);
 
@@ -188,16 +210,32 @@ export const getMemberStats = async (req: Request, res: Response): Promise<void>
 // @route   GET /api/members/me/dashboard
 export const getMyDashboard = async (req: Request, res: Response): Promise<void> => {
     try {
-        const member = await Member.findOne({ userId: req.user?._id });
+        const messId = req.user?.messId;
+        if (!messId) {
+            sendError(res, 'User is not associated with any mess', 400);
+            return;
+        }
+
+        const member = await Member.findOne({ userId: req.user?._id, messId });
         if (!member) {
             sendError(res, 'Member profile not found', 404);
             return;
         }
 
+        const recentMeals = await (await import('../models/Meal')).default.find({
+            messId,
+            'entries.memberId': member._id,
+        }).sort({ date: -1 }).limit(10);
+
+        const recentDeposits = await (await import('../models/Deposit')).default.find({
+            messId,
+            memberId: member._id,
+        }).sort({ date: -1 }).limit(10);
+
         const dashboardData = {
             member,
-            recentMeals: [], 
-            recentDeposits: [] 
+            recentMeals, 
+            recentDeposits 
         };
 
         sendSuccess(res, { dashboardData });
@@ -211,13 +249,19 @@ export const getMyDashboard = async (req: Request, res: Response): Promise<void>
 export const toggleMealOff = async (req: Request, res: Response): Promise<void> => {
     try {
         const { date, isOff } = req.body; 
+        const messId = req.user?.messId;
         
+        if (!messId) {
+            sendError(res, 'User is not associated with any mess', 400);
+            return;
+        }
+
         if (!date) {
             sendError(res, 'Date is required', 400);
             return;
         }
 
-        const member = await Member.findOne({ userId: req.user?._id });
+        const member = await Member.findOne({ userId: req.user?._id, messId });
         if (!member) {
             sendError(res, 'Member profile not found', 404);
             return;
@@ -249,12 +293,14 @@ export const toggleMealOff = async (req: Request, res: Response): Promise<void> 
              return;
         }
 
-        // If target is tomorrow, check 10 PM deadline
+        // If target is tomorrow, check deadline from settings
         if (targetDate.getTime() === tomorrow.getTime()) {
+            const settings = await (await import('../models/MessSettings')).default.findOne({ messId });
+            const deadline = settings?.mealOffDeadlineHour || 22; // Default 10 PM
+            
             const currentHour = now.getHours();
-            // Deadline: 10 PM (22:00)
-            if (currentHour >= 22) {
-                sendError(res, 'Meal off deadline (10:00 PM) has passed for tomorrow.', 400);
+            if (currentHour >= deadline) {
+                sendError(res, `Meal off deadline (${deadline % 12 || 12}:00 ${deadline >= 12 ? 'PM' : 'AM'}) has passed for tomorrow.`, 400);
                 return;
             }
         }

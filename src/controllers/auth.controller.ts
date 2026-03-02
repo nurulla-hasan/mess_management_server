@@ -35,11 +35,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       isVerified: false
     });
 
-    // Create member record
-    await Member.create({
-      userId: user._id,
-    });
-
     // Generate tokens
     const accessToken = generateToken(user._id.toString(), user.role);
     const refreshToken = generateRefreshToken(user._id.toString(), user.role);
@@ -276,8 +271,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Generate tokens
-    const accessToken = generateToken(user._id.toString(), user.role);
-    const refreshToken = generateRefreshToken(user._id.toString(), user.role);
+    const accessToken = generateToken(user._id.toString(), user.role, user.messId?.toString());
+    const refreshToken = generateRefreshToken(user._id.toString(), user.role, user.messId?.toString());
 
     sendSuccess(res, {
       accessToken,
@@ -315,7 +310,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     }
 
     // Generate new access token
-    const accessToken = generateToken(user._id.toString(), user.role);
+    const accessToken = generateToken(user._id.toString(), user.role, user.messId?.toString());
 
     sendSuccess(res, { accessToken }, 'Token refreshed successfully');
   } catch (error) {

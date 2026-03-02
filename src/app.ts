@@ -5,6 +5,7 @@ import morgan from 'morgan';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
+import messRoutes from './routes/mess.routes';
 import memberRoutes from './routes/member.routes';
 import depositRoutes from './routes/deposit.routes';
 import mealRoutes from './routes/meal.routes';
@@ -28,6 +29,7 @@ app.get('/', (req: Request, res: Response) => {
 
 // API Routes
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/messes', messRoutes);
 app.use('/api/v1/members', memberRoutes);
 app.use('/api/v1/deposits', depositRoutes);
 app.use('/api/v1/meals', mealRoutes);

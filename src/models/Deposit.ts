@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IDeposit extends Document {
   memberId: mongoose.Types.ObjectId;
+  messId: mongoose.Types.ObjectId;
   amount: number;
   paymentMethod: 'bkash' | 'cash' | 'bank_transfer' | 'nagad' | 'rocket';
   status: 'pending' | 'approved' | 'rejected';
@@ -15,6 +16,11 @@ const DepositSchema: Schema = new Schema(
     memberId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Member',
+      required: true,
+    },
+    messId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Mess',
       required: true,
     },
     amount: {

@@ -10,6 +10,7 @@ export interface IMealEntry {
 
 export interface IMeal {
   date: Date;
+  messId: Types.ObjectId;
   entries: IMealEntry[];
   totalMeals: number;
   addedBy: Types.ObjectId;
@@ -56,7 +57,11 @@ const mealSchema = new Schema<IMeal>(
     date: {
       type: Date,
       required: [true, 'Date is required'],
-      unique: true,
+    },
+    messId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Mess',
+      required: true,
     },
     entries: {
       type: [mealEntrySchema],
@@ -76,6 +81,9 @@ const mealSchema = new Schema<IMeal>(
     timestamps: true,
   }
 );
+
+// Compound index for date and messId to ensure unique entry per mess per day
+mealSchema.index({ date: 1, messId: 1 }, { unique: true });
 
 // Calculate totalMeals before saving
 mealSchema.pre('save', function () {

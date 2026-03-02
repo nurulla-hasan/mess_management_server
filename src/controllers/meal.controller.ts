@@ -9,14 +9,21 @@ import { sendSuccess, sendError } from '../utils/helpers';
 export const createMeal = async (req: Request, res: Response): Promise<void> => {
   try {
     const { date, entries } = req.body;
-    const mealDate = new Date(date);
+    const messId = req.user?.messId;
 
-    // Check if meal already exists for this date
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
+
+    const mealDate = new Date(date);
+    const startOfDay = new Date(mealDate.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(mealDate.setHours(23, 59, 59, 999));
+
+    // Check if meal already exists for this date and mess
     let meal = await Meal.findOne({
-      date: {
-        $gte: new Date(mealDate.setHours(0, 0, 0, 0)),
-        $lt: new Date(mealDate.setHours(23, 59, 59, 999)),
-      },
+      messId,
+      date: { $gte: startOfDay, $lte: endOfDay },
     });
 
     if (meal) {
@@ -28,6 +35,7 @@ export const createMeal = async (req: Request, res: Response): Promise<void> => 
       // Create new
       meal = await Meal.create({
         date: new Date(date),
+        messId,
         entries,
         addedBy: req.user?._id,
       });
@@ -44,11 +52,18 @@ export const getMeals = async (req: Request, res: Response): Promise<void> => {
   try {
     const month = parseInt(req.query.month as string) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const messId = req.user?.messId;
+
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
 
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
 
     const meals = await Meal.find({
+      messId,
       date: { $gte: startDate, $lte: endDate },
     })
       .populate({
@@ -67,11 +82,18 @@ export const getMeals = async (req: Request, res: Response): Promise<void> => {
 // @route   GET /api/meals/:date
 export const getMealByDate = async (req: Request, res: Response): Promise<void> => {
   try {
+    const messId = req.user?.messId;
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
+
     const targetDate = new Date(req.params.date as string);
     const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
     const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
 
     const meal = await Meal.findOne({
+      messId,
       date: { $gte: startOfDay, $lte: endOfDay },
     }).populate({
       path: 'entries.memberId',
@@ -79,7 +101,7 @@ export const getMealByDate = async (req: Request, res: Response): Promise<void> 
     });
 
     // Get all active members to ensure everyone is listed
-    const activeMembers = await Member.find({ status: 'active' }).populate('userId', 'fullName profilePicture');
+    const activeMembers = await Member.find({ messId, status: 'active' }).populate('userId', 'fullName profilePicture');
 
     if (!meal) {
       // Return empty with all active members for form
@@ -161,9 +183,10 @@ export const getMealByDate = async (req: Request, res: Response): Promise<void> 
 // @route   PUT /api/meals/:id
 export const updateMeal = async (req: Request, res: Response): Promise<void> => {
   try {
-    const meal = await Meal.findById(req.params.id);
+    const messId = req.user?.messId;
+    const meal = await Meal.findOne({ _id: req.params.id, messId });
     if (!meal) {
-      sendError(res, 'Meal not found', 404);
+      sendError(res, 'Meal not found or not authorized', 404);
       return;
     }
 
@@ -182,20 +205,29 @@ export const getMealSummary = async (req: Request, res: Response): Promise<void>
   try {
     const month = parseInt(req.query.month as string) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const messId = req.user?.messId;
+
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
 
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
 
-    // Get all meals for the month
+    // Get all meals for the month and mess
     const meals = await Meal.find({
+      messId,
       date: { $gte: startDate, $lte: endDate },
     });
 
     const totalMeals = meals.reduce((sum, m) => sum + m.totalMeals, 0);
 
-    // Get total expenses for the month (bazar/market costs)
+    // Get total expenses for the month and mess (bazar/market costs)
     const expenses = await Expense.find({
+      messId,
       date: { $gte: startDate, $lte: endDate },
+      status: 'approved',
     });
 
     const totalBazar = expenses

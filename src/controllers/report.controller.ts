@@ -3,6 +3,7 @@ import Meal from '../models/Meal';
 import Expense from '../models/Expense';
 import Member from '../models/Member';
 import Deposit from '../models/Deposit';
+import Mess from '../models/Mess';
 import { sendSuccess, sendError } from '../utils/helpers';
 
 // @desc    Get monthly meal rate trend (last N months)
@@ -10,6 +11,12 @@ import { sendSuccess, sendError } from '../utils/helpers';
 export const getMealRateTrend = async (req: Request, res: Response): Promise<void> => {
   try {
     const monthsBack = parseInt(req.query.months as string) || 6;
+    const messId = req.user?.messId;
+
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
     
     // Determine reference date (default to current date if not provided)
     let refDate = new Date();
@@ -28,11 +35,13 @@ export const getMealRateTrend = async (req: Request, res: Response): Promise<voi
       const startDate = new Date(year, month - 1, 1);
       const endDate = new Date(year, month, 0, 23, 59, 59);
 
-      const meals = await Meal.find({ date: { $gte: startDate, $lte: endDate } });
+      const meals = await Meal.find({ messId, date: { $gte: startDate, $lte: endDate } });
       const totalMeals = meals.reduce((sum, m) => sum + m.totalMeals, 0);
 
       const expenses = await Expense.find({
+        messId,
         date: { $gte: startDate, $lte: endDate },
+        status: 'approved',
         category: { $in: ['meat_fish', 'vegetables', 'groceries'] },
       });
       const totalBazar = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -58,7 +67,14 @@ export const getMealRateTrend = async (req: Request, res: Response): Promise<voi
 export const getMemberDashboard = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?._id;
-    const member = await Member.findOne({ userId }).populate('userId', 'fullName profilePicture');
+    const messId = req.user?.messId;
+
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
+
+    const member = await Member.findOne({ userId, messId }).populate('userId', 'fullName profilePicture');
     
     if (!member) {
       sendError(res, 'Member profile not found', 404);
@@ -72,10 +88,10 @@ export const getMemberDashboard = async (req: Request, res: Response): Promise<v
     const endDate = new Date(year, month, 0, 23, 59, 59);
 
     // 1. Calculate Meal Rate
-    const allMeals = await Meal.find({ date: { $gte: startDate, $lte: endDate } });
+    const allMeals = await Meal.find({ messId, date: { $gte: startDate, $lte: endDate } });
     const totalAllMeals = allMeals.reduce((sum, m) => sum + m.totalMeals, 0);
     
-    const expenses = await Expense.find({ date: { $gte: startDate, $lte: endDate } });
+    const expenses = await Expense.find({ messId, date: { $gte: startDate, $lte: endDate }, status: 'approved' });
     const bazarCost = expenses
       .filter((e) => ['meat_fish', 'vegetables', 'groceries'].includes(e.category))
       .reduce((sum, e) => sum + e.amount - e.adjustment, 0);
@@ -96,7 +112,7 @@ export const getMemberDashboard = async (req: Request, res: Response): Promise<v
       .filter((e) => ['rent', 'gas', 'utility', 'other'].includes(e.category))
       .reduce((sum, e) => sum + e.amount - e.adjustment, 0);
     
-    const activeMembersCount = await Member.countDocuments({ status: 'active' });
+    const activeMembersCount = await Member.countDocuments({ messId, status: 'active' });
     const fixedShare = activeMembersCount > 0 ? fixedExpenses / activeMembersCount : 0;
 
     // 4. Financials
@@ -105,6 +121,7 @@ export const getMemberDashboard = async (req: Request, res: Response): Promise<v
     // Get total deposited this month
     const deposits = await Deposit.find({
       memberId: member._id,
+      messId,
       status: 'approved',
       date: { $gte: startDate, $lte: endDate },
     });
@@ -113,6 +130,7 @@ export const getMemberDashboard = async (req: Request, res: Response): Promise<v
     // Add personal expenses as deposit
     const personalExpenses = await Expense.find({
         buyerId: member._id,
+        messId,
         paymentSource: 'personal',
         date: { $gte: startDate, $lte: endDate },
     });
@@ -120,15 +138,20 @@ export const getMemberDashboard = async (req: Request, res: Response): Promise<v
 
     // 5. Recent Activity
     const recentMeals = await Meal.find({
+        messId,
         'entries.memberId': member._id,
         date: { $gte: startDate, $lte: endDate }
     }).sort({ date: -1 }).limit(5);
 
     const recentDeposits = await Deposit.find({
-        memberId: member._id
+        memberId: member._id,
+        messId
     }).sort({ createdAt: -1 }).limit(5);
 
+    const mess = await Mess.findById(messId).select('name');
+
     sendSuccess(res, {
+      messName: mess?.name || 'My Mess',
       memberInfo: {
         fullName: (member.userId as any).fullName,
         profilePicture: (member.userId as any).profilePicture,
@@ -169,12 +192,20 @@ export const getExpenseDistribution = async (req: Request, res: Response): Promi
   try {
     const month = parseInt(req.query.month as string) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const messId = req.user?.messId;
+
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
 
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
 
     const expenses = await Expense.find({
+      messId,
       date: { $gte: startDate, $lte: endDate },
+      status: 'approved',
     });
 
     const total = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -226,19 +257,25 @@ export const getSettlement = async (req: Request, res: Response): Promise<void> 
   try {
     const month = parseInt(req.query.month as string) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const messId = req.user?.messId;
+
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
 
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
 
-    // Get all active members
-    const members = await Member.find({ status: 'active' }).populate('userId', 'fullName profilePicture');
+    // Get all active members for this mess
+    const members = await Member.find({ messId, status: 'active' }).populate('userId', 'fullName profilePicture');
     const activeCount = members.length;
 
-    // Get all meals for the month
-    const meals = await Meal.find({ date: { $gte: startDate, $lte: endDate } });
+    // Get all meals for the month and mess
+    const meals = await Meal.find({ messId, date: { $gte: startDate, $lte: endDate } });
 
-    // Get all expenses
-    const expenses = await Expense.find({ date: { $gte: startDate, $lte: endDate } });
+    // Get all expenses for this mess
+    const expenses = await Expense.find({ messId, date: { $gte: startDate, $lte: endDate }, status: 'approved' });
 
     // Calculate total bazar and fixed costs
     const bazarExpenses = expenses.filter((e) =>
@@ -274,6 +311,7 @@ export const getSettlement = async (req: Request, res: Response): Promise<void> 
         // Get deposits for this member in this month
         const deposits = await Deposit.find({
           memberId: member._id,
+          messId,
           status: 'approved',
           date: { $gte: startDate, $lte: endDate },
         });
@@ -283,6 +321,7 @@ export const getSettlement = async (req: Request, res: Response): Promise<void> 
         // Get personal expenses for this member (treated as deposit)
         const personalExpenses = await Expense.find({
             buyerId: member._id,
+            messId,
             paymentSource: 'personal',
             date: { $gte: startDate, $lte: endDate },
         });
@@ -341,6 +380,12 @@ export const getSettlement = async (req: Request, res: Response): Promise<void> 
 // @route   GET /api/reports/dashboard
 export const getDashboardOverview = async (req: Request, res: Response): Promise<void> => {
   try {
+    const messId = req.user?.messId;
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
+
     const now = new Date();
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
@@ -348,18 +393,18 @@ export const getDashboardOverview = async (req: Request, res: Response): Promise
     const endDate = new Date(year, month, 0, 23, 59, 59);
 
     // Active members
-    const activeMembers = await Member.countDocuments({ status: 'active' });
+    const activeMembers = await Member.countDocuments({ messId, status: 'active' });
 
     // Total balance (mess fund)
-    const members = await Member.find({ status: 'active' });
+    const members = await Member.find({ messId, status: 'active' });
     const messBalance = members.reduce((sum, m) => sum + m.currentBalance, 0);
 
     // Total expenses this month
-    const expenses = await Expense.find({ date: { $gte: startDate, $lte: endDate } });
+    const expenses = await Expense.find({ messId, date: { $gte: startDate, $lte: endDate }, status: 'approved' });
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
 
     // Current meal rate
-    const meals = await Meal.find({ date: { $gte: startDate, $lte: endDate } });
+    const meals = await Meal.find({ messId, date: { $gte: startDate, $lte: endDate } });
     const totalMeals = meals.reduce((sum, m) => sum + m.totalMeals, 0);
     const bazarCost = expenses
       .filter((e) => ['meat_fish', 'vegetables', 'groceries'].includes(e.category))
@@ -367,7 +412,7 @@ export const getDashboardOverview = async (req: Request, res: Response): Promise
     const currentMealRate = totalMeals > 0 ? bazarCost / totalMeals : 0;
 
     // Recent activities (last 10 expenses + deposits)
-    const recentExpenses = await Expense.find()
+    const recentExpenses = await Expense.find({ messId })
       .populate({
         path: 'buyerId',
         populate: { path: 'userId', select: 'fullName profilePicture' },
@@ -375,7 +420,7 @@ export const getDashboardOverview = async (req: Request, res: Response): Promise
       .sort({ createdAt: -1 })
       .limit(5);
 
-    const recentDeposits = await Deposit.find()
+    const recentDeposits = await Deposit.find({ messId })
       .populate({
         path: 'memberId',
         populate: { path: 'userId', select: 'fullName profilePicture' },
@@ -384,26 +429,27 @@ export const getDashboardOverview = async (req: Request, res: Response): Promise
       .limit(5);
 
     // Payment alerts (members with negative balance)
-    const paymentAlerts = members
-      .filter((m) => m.currentBalance < 0)
-      .map((m) => ({
-        memberId: m._id,
-        amount: Math.abs(m.currentBalance),
-      }));
-
-    // Populate payment alerts with user info
     const alertsPopulated = await Promise.all(
-      paymentAlerts.map(async (alert) => {
-        const member = await Member.findById(alert.memberId).populate('userId', 'fullName profilePicture');
-        return {
-          ...alert,
-          memberName: (member?.userId as any)?.fullName || 'Unknown',
-          profilePicture: (member?.userId as any)?.profilePicture || '',
-        };
-      })
+      members
+        .filter((m) => m.currentBalance < 0)
+        .map(async (m) => {
+          const member = await Member.findById(m._id).populate('userId', 'fullName profilePicture');
+          return {
+            memberId: m._id,
+            amount: Math.abs(m.currentBalance),
+            memberName: (member?.userId as any)?.fullName || 'Unknown',
+            profilePicture: (member?.userId as any)?.profilePicture || '',
+          };
+        })
     );
 
+    const mess = await Mess.findById(messId).select('name inviteCode');
+
     sendSuccess(res, {
+      mess: {
+        name: mess?.name || 'My Mess',
+        inviteCode: mess?.inviteCode || '',
+      },
       activeMembers,
       messBalance: Math.round(messBalance * 100) / 100,
       totalExpenses,

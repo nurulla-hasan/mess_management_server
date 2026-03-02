@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface IMessSettings extends Document {
+  messId: Types.ObjectId;
   messName: string;
   mealRateCalculation: 'variable' | 'fixed';
   fixedMealRate?: number;
@@ -20,6 +21,12 @@ export interface IMessSettings extends Document {
 
 const messSettingsSchema = new Schema<IMessSettings>(
   {
+    messId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Mess',
+      required: true,
+      unique: true,
+    },
     messName: {
       type: String,
       default: 'Mess Manager',

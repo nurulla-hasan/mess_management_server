@@ -8,16 +8,23 @@ import { uploadToCloudinary } from '../utils/cloudinary';
 // @route   GET /api/settings
 export const getSettings = async (req: Request, res: Response): Promise<void> => {
   try {
-    let settings = await MessSettings.findOne()
+    const messId = req.user?.messId;
+
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
+
+    let settings = await MessSettings.findOne({ messId })
       .populate({
         path: 'bazarManagerToday',
         populate: { path: 'userId', select: 'fullName profilePicture' },
       })
       .populate('messManagerId', 'fullName profilePicture');
 
-    // Create default settings if none exist
+    // Create default settings if none exist (this shouldn't happen if Mess creation is handled correctly)
     if (!settings) {
-      settings = await MessSettings.create({});
+      settings = await MessSettings.create({ messId });
     }
 
     sendSuccess(res, settings);
@@ -30,6 +37,13 @@ export const getSettings = async (req: Request, res: Response): Promise<void> =>
 // @route   PUT /api/settings
 export const updateSettings = async (req: Request, res: Response): Promise<void> => {
   try {
+    const messId = req.user?.messId;
+
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
+
     const allowedFields = [
       'messName',
       'mealRateCalculation',
@@ -49,11 +63,11 @@ export const updateSettings = async (req: Request, res: Response): Promise<void>
       }
     });
 
-    let settings = await MessSettings.findOne();
+    let settings = await MessSettings.findOne({ messId });
     if (!settings) {
-      settings = await MessSettings.create(updates);
+      settings = await MessSettings.create({ ...updates, messId });
     } else {
-      settings = await MessSettings.findOneAndUpdate({}, updates, {
+      settings = await MessSettings.findOneAndUpdate({ messId }, updates, {
         new: true,
         runValidators: true,
       });

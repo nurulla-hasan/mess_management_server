@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IMember extends Document {
   userId: mongoose.Types.ObjectId;
+  messId: mongoose.Types.ObjectId;
   totalMeals: number;
   totalDeposits: number;
   currentBalance: number;
@@ -16,6 +17,11 @@ const MemberSchema: Schema = new Schema(
       ref: 'User',
       required: true,
       unique: true,
+    },
+    messId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Mess',
+      required: true,
     },
     totalMeals: {
       type: Number,

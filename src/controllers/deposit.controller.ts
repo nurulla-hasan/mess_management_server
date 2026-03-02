@@ -9,6 +9,12 @@ export const createDeposit = async (req: Request, res: Response): Promise<void> 
   try {
     const { amount, paymentMethod, date, note, memberId: bodyMemberId } = req.body;
     const userId = req.user?._id;
+    const messId = req.user?.messId;
+
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
 
     // Allow admin to specify memberId
     let memberId = bodyMemberId;
@@ -21,7 +27,7 @@ export const createDeposit = async (req: Request, res: Response): Promise<void> 
        verifiedBy = req.user._id;
        
        if (!memberId) {
-           const member = await Member.findOne({ userId });
+           const member = await Member.findOne({ userId, messId });
            if (!member) {
                sendError(res, 'Member ID is required', 400);
                return;
@@ -30,7 +36,7 @@ export const createDeposit = async (req: Request, res: Response): Promise<void> 
        }
     } else {
        // Regular user or admin creating for self (default)
-       const member = await Member.findOne({ userId });
+       const member = await Member.findOne({ userId, messId });
        if (!member) {
          sendError(res, 'Member profile not found', 404);
          return;
@@ -40,6 +46,7 @@ export const createDeposit = async (req: Request, res: Response): Promise<void> 
 
     const deposit = await Deposit.create({
       memberId,
+      messId,
       amount,
       paymentMethod,
       date: date || new Date(),
@@ -50,7 +57,7 @@ export const createDeposit = async (req: Request, res: Response): Promise<void> 
 
     // If approved, update member balance
     if (status === 'approved') {
-        const member = await Member.findById(memberId);
+        const member = await Member.findOne({ _id: memberId, messId });
         if (member) {
             member.totalDeposits += amount;
             member.currentBalance += amount;
@@ -73,8 +80,14 @@ export const getAllDeposits = async (req: Request, res: Response): Promise<void>
     const skip = (page - 1) * limit;
     const status = req.query.status as string;
     const memberId = req.query.memberId as string;
+    const messId = req.user?.messId;
 
-    let query: any = {};
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
+
+    let query: any = { messId };
     if (status) query.status = status;
     if (memberId) query.memberId = memberId;
 
@@ -110,11 +123,18 @@ export const getDepositSummary = async (req: Request, res: Response): Promise<vo
   try {
     const month = parseInt(req.query.month as string) || new Date().getMonth() + 1;
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const messId = req.user?.messId;
+
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
 
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
 
     const deposits = await Deposit.find({
+      messId,
       date: { $gte: startDate, $lte: endDate },
       status: 'approved',
     });
@@ -137,7 +157,8 @@ export const getDepositSummary = async (req: Request, res: Response): Promise<vo
 export const getMyDeposits = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?._id;
-    const member = await Member.findOne({ userId });
+    const messId = req.user?.messId;
+    const member = await Member.findOne({ userId, messId });
     
     if (!member) {
       sendError(res, 'Member profile not found', 404);
@@ -148,12 +169,12 @@ export const getMyDeposits = async (req: Request, res: Response): Promise<void> 
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const deposits = await Deposit.find({ memberId: member._id })
+    const deposits = await Deposit.find({ memberId: member._id, messId })
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 });
 
-    const total = await Deposit.countDocuments({ memberId: member._id });
+    const total = await Deposit.countDocuments({ memberId: member._id, messId });
 
     sendSuccess(res, {
       deposits,
@@ -176,10 +197,16 @@ export const updateDepositStatus = async (req: Request, res: Response): Promise<
     const { status } = req.body;
     const depositId = req.params.id;
     const adminId = req.user?._id;
+    const messId = req.user?.messId;
 
-    const deposit = await Deposit.findById(depositId);
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
+
+    const deposit = await Deposit.findOne({ _id: depositId, messId });
     if (!deposit) {
-      sendError(res, 'Deposit not found', 404);
+      sendError(res, 'Deposit not found or not authorized', 404);
       return;
     }
 
@@ -198,26 +225,24 @@ export const updateDepositStatus = async (req: Request, res: Response): Promise<
     }
     await deposit.save();
 
-    // Update Member Balance Logic
-    const member = await Member.findById(deposit.memberId);
-    if (member) {
-      let balanceChange = 0;
+    // If status changed to approved, update member balance
+    if (status === 'approved' && oldStatus !== 'approved') {
+        const member = await Member.findOne({ _id: deposit.memberId, messId });
+        if (member) {
+            member.totalDeposits += deposit.amount;
+            member.currentBalance += deposit.amount;
+            await member.save();
+        }
+    }
 
-      // Logic: 
-      // If moving TO approved: +amount
-      // If moving FROM approved: -amount
-      
-      if (status === 'approved' && oldStatus !== 'approved') {
-        balanceChange = deposit.amount;
-      } else if (oldStatus === 'approved' && status !== 'approved') {
-        balanceChange = -deposit.amount;
-      }
-
-      if (balanceChange !== 0) {
-        member.totalDeposits += balanceChange;
-        member.currentBalance += balanceChange;
-        await member.save();
-      }
+    // If status changed from approved to something else, revert balance
+    if (oldStatus === 'approved' && status !== 'approved') {
+        const member = await Member.findOne({ _id: deposit.memberId, messId });
+        if (member) {
+            member.totalDeposits -= deposit.amount;
+            member.currentBalance -= deposit.amount;
+            await member.save();
+        }
     }
 
     sendSuccess(res, { deposit }, 'Deposit status updated successfully');
@@ -230,15 +255,22 @@ export const updateDepositStatus = async (req: Request, res: Response): Promise<
 // @route   DELETE /api/deposits/:id
 export const deleteDeposit = async (req: Request, res: Response): Promise<void> => {
   try {
-    const deposit = await Deposit.findById(req.params.id);
+    const messId = req.user?.messId;
+
+    if (!messId) {
+      sendError(res, 'User is not associated with any mess', 400);
+      return;
+    }
+
+    const deposit = await Deposit.findOne({ _id: req.params.id, messId });
     if (!deposit) {
-      sendError(res, 'Deposit not found', 404);
+      sendError(res, 'Deposit not found or not authorized', 404);
       return;
     }
 
     // If deleting an approved deposit, revert balance
     if (deposit.status === 'approved') {
-      const member = await Member.findById(deposit.memberId);
+      const member = await Member.findOne({ _id: deposit.memberId, messId });
       if (member) {
         member.totalDeposits -= deposit.amount;
         member.currentBalance -= deposit.amount;
