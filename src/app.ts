@@ -2,6 +2,7 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import connectDB from './config/db';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -16,6 +17,14 @@ import settingsRoutes from './routes/settings.routes';
 const app: Application = express();
 
 // Middleware
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
