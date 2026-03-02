@@ -35,7 +35,6 @@ export const updateSettings = async (req: Request, res: Response): Promise<void>
       'mealRateCalculation',
       'fixedMealRate',
       'defaultCurrency',
-      'ramadanMode',
       'notificationReminders',
       'monthlyBudget',
       'bazarManagerToday',

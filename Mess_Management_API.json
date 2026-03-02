@@ -719,7 +719,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"date\": \"2023-10-05\",\n  \"entries\": [\n    {\n      \"memberId\": \"{{memberId}}\",\n      \"breakfast\": 0,\n      \"lunch\": 1,\n      \"dinner\": 1,\n      \"guest\": 0\n    }\n  ],\n  \"isRamadanMode\": false\n}"
+              "raw": "{\n  \"date\": \"2023-10-05\",\n  \"entries\": [\n    {\n      \"memberId\": \"{{memberId}}\",\n      \"breakfast\": 0,\n      \"lunch\": 1,\n      \"dinner\": 1,\n      \"guest\": 0\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/meals",
@@ -744,7 +744,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"date\": \"2023-10-04\",\n  \"entries\": [\n    {\n      \"memberId\": \"{{memberId}}\",\n      \"breakfast\": 1,\n      \"lunch\": 1,\n      \"dinner\": 1,\n      \"guest\": 0\n    }\n  ],\n  \"isRamadanMode\": false\n}"
+              "raw": "{\n  \"date\": \"2023-10-04\",\n  \"entries\": [\n    {\n      \"memberId\": \"{{memberId}}\",\n      \"breakfast\": 1,\n      \"lunch\": 1,\n      \"dinner\": 1,\n      \"guest\": 0\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/meals",
@@ -1160,7 +1160,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"messName\": \"Mess Manager\",\n  \"mealRateCalculation\": \"variable\",\n  \"defaultCurrency\": \"BDT\",\n  \"ramadanMode\": false,\n  \"notificationReminders\": true,\n  \"monthlyBudget\": 20000,\n  \"mealOffDeadlineHour\": 22\n}"
+              "raw": "{\n  \"messName\": \"Mess Manager\",\n  \"mealRateCalculation\": \"variable\",\n  \"defaultCurrency\": \"BDT\",\n  \"notificationReminders\": true,\n  \"monthlyBudget\": 20000,\n  \"mealOffDeadlineHour\": 22\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/settings",

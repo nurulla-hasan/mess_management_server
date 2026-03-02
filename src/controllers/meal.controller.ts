@@ -8,7 +8,7 @@ import { sendSuccess, sendError } from '../utils/helpers';
 // @route   POST /api/meals
 export const createMeal = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { date, entries, isRamadanMode } = req.body;
+    const { date, entries } = req.body;
     const mealDate = new Date(date);
 
     // Check if meal already exists for this date
@@ -22,7 +22,6 @@ export const createMeal = async (req: Request, res: Response): Promise<void> => 
     if (meal) {
       // Update existing
       meal.entries = entries;
-      meal.isRamadanMode = isRamadanMode || false;
       await meal.save(); // pre-save hook recalculates totalMeals
       sendSuccess(res, meal, 'Meal entry updated');
     } else {
@@ -31,7 +30,6 @@ export const createMeal = async (req: Request, res: Response): Promise<void> => 
         date: new Date(date),
         entries,
         addedBy: req.user?._id,
-        isRamadanMode: isRamadanMode || false,
       });
       sendSuccess(res, meal, 'Meal entry created', 201);
     }
@@ -149,7 +147,6 @@ export const getMealByDate = async (req: Request, res: Response): Promise<void> 
       entries: mergedEntries,
       totalMeals: meal.totalMeals,
       addedBy: meal.addedBy,
-      isRamadanMode: meal.isRamadanMode,
       createdAt: meal.createdAt,
       updatedAt: meal.updatedAt
     };
@@ -171,7 +168,6 @@ export const updateMeal = async (req: Request, res: Response): Promise<void> => 
     }
 
     if (req.body.entries) meal.entries = req.body.entries;
-    if (typeof req.body.isRamadanMode === 'boolean') meal.isRamadanMode = req.body.isRamadanMode;
 
     await meal.save(); // pre-save recalculates totalMeals
     sendSuccess(res, meal, 'Meal updated');

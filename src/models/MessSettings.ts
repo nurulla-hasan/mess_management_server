@@ -5,7 +5,6 @@ export interface IMessSettings extends Document {
   mealRateCalculation: 'variable' | 'fixed';
   fixedMealRate?: number;
   defaultCurrency: string;
-  ramadanMode: boolean;
   notificationReminders: boolean;
   currentMonth: number;
   currentYear: number;
@@ -38,10 +37,6 @@ const messSettingsSchema = new Schema<IMessSettings>(
     defaultCurrency: {
       type: String,
       default: 'BDT',
-    },
-    ramadanMode: {
-      type: Boolean,
-      default: false,
     },
     notificationReminders: {
       type: Boolean,

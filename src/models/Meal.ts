@@ -13,7 +13,6 @@ export interface IMeal {
   entries: IMealEntry[];
   totalMeals: number;
   addedBy: Types.ObjectId;
-  isRamadanMode: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,10 +70,6 @@ const mealSchema = new Schema<IMeal>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-    },
-    isRamadanMode: {
-      type: Boolean,
-      default: false,
     },
   },
   {

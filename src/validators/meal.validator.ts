@@ -11,10 +11,8 @@ const mealEntrySchema = z.object({
 export const createMealSchema = z.object({
   date: z.string().min(1, 'Date is required'),
   entries: z.array(mealEntrySchema).min(1, 'At least one meal entry is required'),
-  isRamadanMode: z.boolean().default(false),
 });
 
 export const updateMealSchema = z.object({
   entries: z.array(mealEntrySchema).min(1).optional(),
-  isRamadanMode: z.boolean().optional(),
 });
